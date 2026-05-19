@@ -1,0 +1,97 @@
+Contexto del proyecto
+
+Flujo de inscripción
+1) home
+2) login o registro
+3) personal-data
+4) modality
+5) documents
+6) family-data
+7) quiz
+8) resume
+9) sworn-affidavit
+10) payment
+11) registration-form
+
+Lineamientos técnicos
+- Para reactividad usar React.
+- Gestor de paquetes: Yarn.
+- Gestor de estado (si es necesario): Zustand.
+- Estilos: Tailwind CSS.
+- Las páginas de Next deben ser server por defecto.
+- Usar componentes y hooks para encapsular lógica.
+- La aplicación debe ser responsive.
+- Los colores oficiales están en data/colores.md.
+- Para consumir APIs, seguir mejores prácticas y una estructura modular.
+- Documentar el código en español, pero usar variables en ingles.
+
+Estado actual del frontend
+- Existe un flujo de rutas alineado al orden de inscripción definido arriba.
+- El home puede tener diseño propio (restaurado por el usuario) sin afectar el resto de pasos.
+- Los pasos del flujo usan navegación básica con botones `Regresar` y `Siguiente`.
+- En `registration-form` el botón `Siguiente` queda deshabilitado por ser el último paso.
+- El layout privado incluye:
+  - Header con logo UNI (`public/uni.png`), texto "Inscripciones 2026-1" y botón "Mi perfil".
+  - Footer sutil y poco cargado.
+- La ruta `/my-profile` está activa para el acceso desde el header.
+- La ruta `/payments` se considera legacy; el flujo principal usa `/payment`.
+
+Secciones abiertas para ampliar
+
+Objetivo del proyecto
+- Es un sistema de inscripción de postulantes a la universidad nacional de ingenieria
+
+Alcance funcional
+- Pendiente
+
+Reglas de negocio
+- Modalidades
+    - Iniciar estudios
+        - Ordinario
+        - Primeros puestos
+        - Deportista Calificado de Alto Rendimiento
+        - Plan Integral de Reparaciones
+        - Persona con Discapacidad
+
+    - Continuar Estudios
+        - Diplomado con Bachillerato Internacional
+        - Persona con Discapacidad (continuar estudios)
+        - Convenio Andrés Bello
+        - Traslado Externo
+        - Traslado Externo para estudiantes provenientes de universidades no
+          licenciadas
+        - Titulados o Graduados UNI
+        - Titulados o Graduados en otra universidad.
+        - Convenio Diplomático para Hijo o Cónyuge de Diplomático
+    - Ingreso Directo
+        - Ingreso directo Lima
+        - Ingreso directo Juliaca
+    - Ingreso Escolar Nacional
+    - Talento Beca 18
+
+Estados y validaciones por paso
+- Pendiente
+
+Contratos de API
+- Pendiente
+
+Manejo de errores
+- Pendiente
+
+Requisitos de seguridad
+- Pendiente
+
+Requisitos de rendimiento
+- Pendiente
+
+Criterios de aceptacion
+- Pendiente
+
+Pendientes tecnicos
+- Pendiente
+
+Decisiones tecnicas (ADR)
+- Pendiente
+
+Notas de despliegue
+- Pendiente
