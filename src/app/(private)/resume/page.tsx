@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import BaseStepPage from "@/components/base-step-page";
+import ConfirmationSummary from "@/components/resume/confirmation-summary";
 
 export const metadata: Metadata = {
   title: "resume",
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function ResumePage() {
-  return <BaseStepPage title="resume" prevHref="/quiz" nextHref="/sworn-affidavit" />;
+  return <ConfirmationSummary />;
 }

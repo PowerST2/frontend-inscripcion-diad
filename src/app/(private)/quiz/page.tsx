@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import BaseStepPage from "@/components/base-step-page";
+import ApplicantQuizForm from "@/components/quiz/applicant-quiz-form";
 
 export const metadata: Metadata = {
-  title: "quiz",
-  description: "Paso 7 del flujo de inscripcion",
+  title: "Encuesta del postulante",
+  description: "Encuesta de perfil del postulante",
 };
 
 export default function QuizPage() {
-  return <BaseStepPage title="quiz" prevHref="/family-data" nextHref="/resume" />;
+  return <ApplicantQuizForm />;
 }

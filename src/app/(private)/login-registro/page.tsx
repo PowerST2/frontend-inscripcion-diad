@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import BaseStepPage from "@/components/base-step-page";
+import LoginRegisterForm from "@/components/auth/login-register-form";
 
 export const metadata: Metadata = {
-  title: "login o registro",
-  description: "Paso 2 del flujo de inscripcion",
+  title: "Login o registro",
+  description: "Acceso al portal de inscripcion",
 };
 
 export default function LoginRegistroPage() {
-  return <BaseStepPage title="login o registro" prevHref="/" nextHref="/personal-data" />;
+  return <LoginRegisterForm />;
 }

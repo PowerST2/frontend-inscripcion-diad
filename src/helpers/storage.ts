@@ -112,7 +112,7 @@ export function getStorageKeys(): string[] {
 export function getStorageSize(): number {
   let size = 0;
   try {
-    for (let key in localStorage) {
+    for (const key in localStorage) {
       if (localStorage.hasOwnProperty(key)) {
         size += localStorage[key].length + key.length;
       }
@@ -147,4 +147,3 @@ export interface UseStorageReturn<T> {
   removeValue: () => void;
   isLoading: boolean;
 }
-

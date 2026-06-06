@@ -3,15 +3,17 @@ Contexto del proyecto
 Flujo de inscripción
 1) home
 2) login o registro
-3) personal-data
-4) modality
-5) documents
-6) family-data
-7) quiz
-8) resume
-9) sworn-affidavit
-10) payment
-11) registration-form
+3) my-profile
+4) pre-inscription-affidavit
+5) personal-data
+6) modality
+7) documents
+8) family-data
+9) quiz
+10) sworn-affidavit
+11) payment
+12) resume
+13) satisfaction
 
 Lineamientos técnicos
 - Para reactividad usar React.
@@ -26,7 +28,13 @@ Lineamientos técnicos
 - Documentar el código en español, pero usar variables en ingles.
 
 Estado actual del frontend
-- Existe un flujo de rutas alineado al orden de inscripción definido arriba.
+- Login/registro siempre redirige a `/my-profile`.
+- Existe guardia de orden obligatorio: no permite saltar pasos por URL, salvo `/my-profile`.
+- `/my-profile` muestra línea de tiempo y botón `Comenzar/Continuar pre-inscripción`.
+- `/pre-inscription-affidavit` muestra declaración inicial HTML desde `system_documents` y registra aceptación.
+- `/payment` muestra obligaciones generadas después de aprobación administrativa de declaración jurada.
+- `/resume` muestra resumen real, checkbox de conformidad y confirma datos.
+- `/satisfaction` registra encuesta final luego de confirmar datos.
 - El home puede tener diseño propio (restaurado por el usuario) sin afectar el resto de pasos.
 - Los pasos del flujo usan navegación básica con botones `Regresar` y `Siguiente`.
 - En `registration-form` el botón `Siguiente` queda deshabilitado por ser el último paso.
@@ -35,6 +43,7 @@ Estado actual del frontend
   - Footer sutil y poco cargado.
 - La ruta `/my-profile` está activa para el acceso desde el header.
 - La ruta `/payments` se considera legacy; el flujo principal usa `/payment`.
+- La campana lista pendientes, pero el flujo debe seguir el orden obligatorio.
 
 Secciones abiertas para ampliar
 
@@ -70,10 +79,14 @@ Reglas de negocio
     - Talento Beca 18
 
 Estados y validaciones por paso
-- Pendiente
+- `personal-data` requiere declaración inicial aceptada.
+- `sworn-affidavit` solo completa cuando la DDJJ está aprobada por administración.
+- `payment` se habilita cuando se generan obligaciones; `resume` requiere todos los pagos validados.
+- `satisfaction` va después de `data_confirmed=true`.
 
 Contratos de API
-- Pendiente
+- Base en `src/lib/applicant.ts`.
+- Nuevos endpoints: `preinscription-consent`, `payments`, `confirm-data`, `satisfaction-survey`.
 
 Manejo de errores
 - Pendiente

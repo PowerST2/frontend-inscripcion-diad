@@ -1,26 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { FaCheckCircle, FaFileAlt, FaUpload } from "react-icons/fa";
+import { ApiError } from "@/lib/api";
+import { AUTH_TOKEN_KEY } from "@/lib/auth";
+import {
+  ApplicantUploadedDocument,
+  ModalityRequiredDocument,
+  getApplicantDocuments,
+  getApplicantProgress,
+  getModalityDocuments,
+  uploadApplicantDocument,
+} from "@/lib/applicant";
 
-type UploadedDocument = {
-  id: string;
-  documentType: string;
-  fileName: string;
-  fileSizeKb: number;
-  addedAt: string;
-};
+function formatDate(value: string | null) {
+  if (!value) return "";
 
-const DOCUMENT_TYPE_OPTIONS = [
-  "DNI",
-  "Foto",
-  "Certificado de estudios",
-  "Constancia de egresado",
-  "Otro",
-];
-
-function formatDate(value: Date) {
-  return value.toLocaleString("es-PE", {
+  return new Date(value).toLocaleString("es-PE", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -29,134 +27,251 @@ function formatDate(value: Date) {
   });
 }
 
+function formatFileSize(file: File) {
+  const sizeKb = Math.max(1, Math.round(file.size / 1024));
+
+  return `${sizeKb} KB`;
+}
+
 export default function DocumentsUploadForm() {
-  const [documentType, setDocumentType] = useState("");
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [documents, setDocuments] = useState<UploadedDocument[]>([]);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const router = useRouter();
+  const [token, setToken] = useState<string | null>(null);
+  const [modalityName, setModalityName] = useState("");
+  const [requiredDocuments, setRequiredDocuments] = useState<ModalityRequiredDocument[]>([]);
+  const [uploadedDocuments, setUploadedDocuments] = useState<ApplicantUploadedDocument[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
+  const [uploadingDocument, setUploadingDocument] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
-  const addDocuments = () => {
-    if (!documentType || selectedFiles.length === 0) return;
+  const uploadedByName = useMemo(
+    () => new Map(uploadedDocuments.map((document) => [document.document_name, document])),
+    [uploadedDocuments]
+  );
 
-    const now = new Date();
-    const newRows: UploadedDocument[] = selectedFiles.map((file, index) => ({
-      id: `${now.getTime()}-${index}-${file.name}`,
-      documentType,
-      fileName: file.name,
-      fileSizeKb: Math.max(1, Math.round(file.size / 1024)),
-      addedAt: formatDate(now),
-    }));
+  const completedCount = requiredDocuments.filter((document) =>
+    uploadedByName.get(document.document_name)?.status !== "rejected" &&
+    uploadedByName.has(document.document_name)
+  ).length;
 
-    setDocuments((prev) => [...prev, ...newRows]);
-    setSelectedFiles([]);
+  const allDocumentsUploaded =
+    requiredDocuments.length > 0 && completedCount === requiredDocuments.length;
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+  useEffect(() => {
+    const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
+    if (!storedToken) {
+      router.replace("/login-registro");
+      return;
+    }
+
+    setToken(storedToken);
+
+    getApplicantProgress(storedToken)
+      .then(async (progressResponse) => {
+        const modality = progressResponse.applicant?.modality;
+
+        if (!modality?.id) {
+          router.replace("/modality");
+          return;
+        }
+
+        setModalityName(modality.name);
+
+        const [requiredResponse, uploadedResponse] = await Promise.all([
+          getModalityDocuments(modality.id),
+          getApplicantDocuments(storedToken),
+        ]);
+
+        setRequiredDocuments(requiredResponse.data);
+        setUploadedDocuments(uploadedResponse.data);
+      })
+      .catch((caughtError) => {
+        setError(
+          caughtError instanceof ApiError
+            ? caughtError.message
+            : "No se pudieron cargar los documentos requeridos."
+        );
+      })
+      .finally(() => setIsLoading(false));
+  }, [router]);
+
+  const handleFileChange = (documentName: string, event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    setSelectedFiles((current) => ({ ...current, [documentName]: file }));
+    setError(null);
+    setMessage(null);
+  };
+
+  const handleUpload = async (documentName: string) => {
+    if (!token) return;
+
+    const file = selectedFiles[documentName];
+    if (!file) {
+      setError("Seleccione un archivo antes de subirlo.");
+      return;
+    }
+
+    setError(null);
+    setMessage(null);
+    setUploadingDocument(documentName);
+
+    try {
+      const response = await uploadApplicantDocument(token, documentName, file);
+      setUploadedDocuments((current) => [
+        response.document,
+        ...current.filter((document) => document.document_name !== documentName),
+      ]);
+      setSelectedFiles((current) => ({ ...current, [documentName]: null }));
+      setMessage("Documento subido correctamente.");
+      window.dispatchEvent(new Event("admision-progress-updated"));
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof ApiError ? caughtError.message : "No se pudo subir el documento."
+      );
+    } finally {
+      setUploadingDocument(null);
     }
   };
 
-  const removeDocument = (id: string) => {
-    setDocuments((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const canAdd = documentType !== "" && selectedFiles.length > 0;
+  if (isLoading) {
+    return (
+      <section className="mx-auto flex w-full max-w-4xl flex-1 items-center justify-center px-6 py-10 text-sm font-medium text-[#711610]">
+        Cargando documentos requeridos...
+      </section>
+    );
+  }
 
   return (
-    <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-6 py-10">
+    <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-8 md:px-6">
       <header className="mb-6 rounded-lg border border-[#711610]/20 bg-white p-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[#711610]">Paso 5 de 11</p>
-        <h1 className="mt-1 text-2xl font-semibold text-[#711610] md:text-3xl">Documentos</h1>
-        <p className="mt-2 text-sm text-[#711610]">
-          Cargue uno o varios archivos de manera simple. Esta version es de prueba y luego sera dinamica.
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#711610]">
+          Paso 5 de 11
+        </p>
+        <h1 className="mt-1 text-2xl font-semibold text-[#711610] md:text-3xl">
+          Documentos
+        </h1>
+        <p className="mt-2 text-sm leading-6 text-[#711610]">
+          Cargue los documentos requeridos para la modalidad {modalityName || "seleccionada"}.
         </p>
       </header>
 
-      <div className="space-y-4 rounded-lg border border-[#9A999D]/30 bg-white p-5">
-        <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto]">
-          <label className="block text-sm">
-            <span className="mb-1 block font-medium text-[#711610]">Tipo de documento</span>
-            <select
-              value={documentType}
-              onChange={(event) => setDocumentType(event.target.value)}
-              className="w-full rounded-md border border-[#9A999D]/50 px-3 py-2 outline-none focus:border-[#711610]"
-            >
-              <option value="">Seleccione un tipo</option>
-              {DOCUMENT_TYPE_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block text-sm">
-            <span className="mb-1 block font-medium text-[#711610]">Archivos</span>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              onChange={(event) => setSelectedFiles(Array.from(event.target.files ?? []))}
-              className="w-full rounded-md border border-[#9A999D]/50 px-3 py-2 text-sm outline-none focus:border-[#711610]"
-            />
-          </label>
-
-          <button
-            type="button"
-            onClick={addDocuments}
-            disabled={!canAdd}
-            className="self-end rounded-md bg-[#711610] px-5 py-2 text-sm font-medium text-white enabled:hover:bg-[#5e120d] disabled:cursor-not-allowed disabled:bg-[#9A999D]"
-          >
-            Agregar
-          </button>
+      {(error || message) && (
+        <div
+          className={`mb-5 rounded-md border px-4 py-3 text-sm ${
+            error
+              ? "border-red-200 bg-red-50 text-red-700"
+              : "border-green-200 bg-green-50 text-green-700"
+          }`}
+        >
+          {error ?? message}
         </div>
+      )}
 
-        {selectedFiles.length > 0 && (
-          <p className="text-sm text-[#711610]">
-            {selectedFiles.length} archivo(s) listos para agregar con tipo <strong>{documentType || "(sin tipo)"}</strong>.
-          </p>
-        )}
-      </div>
+      <section className="mb-5 rounded-lg border border-[#9A999D]/30 bg-white p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#9A999D]">
+              Avance de documentos
+            </p>
+            <h2 className="mt-1 text-xl font-semibold text-[#711610]">
+              {completedCount} de {requiredDocuments.length} cargados
+            </h2>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-[#9A999D]/20 md:w-72">
+            <div
+              className="h-full rounded-full bg-[#711610] transition-all"
+              style={{
+                width:
+                  requiredDocuments.length === 0
+                    ? "0%"
+                    : `${Math.round((completedCount / requiredDocuments.length) * 100)}%`,
+              }}
+            />
+          </div>
+        </div>
+      </section>
 
-      <div className="mt-6 overflow-hidden rounded-lg border border-[#9A999D]/30 bg-white">
-        <table className="min-w-full text-sm">
-          <thead className="bg-[#E6D9AA]/30 text-left text-[#711610]">
-            <tr>
-              <th className="px-4 py-3 font-semibold">Tipo</th>
-              <th className="px-4 py-3 font-semibold">Archivo</th>
-              <th className="px-4 py-3 font-semibold">Tamano (KB)</th>
-              <th className="px-4 py-3 font-semibold">Agregado</th>
-              <th className="px-4 py-3 font-semibold">Accion</th>
-            </tr>
-          </thead>
-          <tbody>
-            {documents.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-[#9A999D]">
-                  Aun no se agregaron documentos.
-                </td>
-              </tr>
-            ) : (
-              documents.map((item) => (
-                <tr key={item.id} className="border-t border-[#9A999D]/20 text-[#711610]">
-                  <td className="px-4 py-3">{item.documentType}</td>
-                  <td className="px-4 py-3">{item.fileName}</td>
-                  <td className="px-4 py-3">{item.fileSizeKb}</td>
-                  <td className="px-4 py-3">{item.addedAt}</td>
-                  <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => removeDocument(item.id)}
-                      className="rounded-md border border-[#9A999D] px-3 py-1 text-xs text-[#9A999D] hover:bg-[#9A999D]/10"
-                    >
-                      Quitar
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      {requiredDocuments.length === 0 ? (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-5 text-sm leading-6 text-[#711610]">
+          No hay documentos activos configurados para esta modalidad.
+        </div>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {requiredDocuments.map((document) => {
+            const uploaded = uploadedByName.get(document.document_name);
+            const isRejected = uploaded?.status === "rejected";
+            const isPending = uploaded?.status === "pending";
+            const selectedFile = selectedFiles[document.document_name] ?? null;
+            const isUploading = uploadingDocument === document.document_name;
+
+            return (
+              <article
+                key={document.id}
+                className="rounded-lg border border-[#9A999D]/30 bg-white p-5"
+              >
+                <div className="flex gap-4">
+                  <div
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md ${
+                      uploaded && !isRejected
+                        ? "bg-green-100 text-green-700"
+                        : isRejected
+                          ? "bg-red-100 text-red-700"
+                          : "bg-[#E6D9AA]/40 text-[#711610]"
+                    }`}
+                  >
+                    {uploaded && !isRejected ? <FaCheckCircle /> : <FaFileAlt />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[#9A999D]">
+                      {document.document_code}
+                    </p>
+                    <h2 className="mt-1 text-base font-semibold leading-6 text-[#711610]">
+                      {document.document_name}
+                    </h2>
+                    {uploaded && !isRejected && (
+                      <p className="mt-2 text-sm text-green-700">
+                        {isPending ? "Pendiente de evaluación" : "Aprobado"} · cargado el{" "}
+                        {formatDate(uploaded.created_at)}
+                      </p>
+                    )}
+                    {isRejected && (
+                      <p className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm leading-6 text-red-700">
+                        Rechazado: {uploaded.rejection_reason ?? "Sin motivo registrado."}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.pdf"
+                    onChange={(event) => handleFileChange(document.document_name, event)}
+                    className="form-input text-sm"
+                  />
+
+                  {selectedFile && (
+                    <p className="text-sm text-[#711610]">
+                      {selectedFile.name} · {formatFileSize(selectedFile)}
+                    </p>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => handleUpload(document.document_name)}
+                    disabled={!selectedFile || isUploading}
+                    className="inline-flex items-center gap-2 rounded-md bg-[#711610] px-4 py-2 text-sm font-medium text-white hover:bg-[#5e120d] disabled:cursor-not-allowed disabled:bg-[#9A999D]"
+                  >
+                    <FaUpload className="text-xs" />
+                    {isUploading ? "Subiendo..." : uploaded ? "Reemplazar" : "Subir documento"}
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
 
       <footer className="mt-6 flex items-center justify-between gap-3">
         <Link
@@ -166,7 +281,7 @@ export default function DocumentsUploadForm() {
           Regresar
         </Link>
 
-        {documents.length > 0 ? (
+        {allDocumentsUploaded ? (
           <Link
             href="/family-data"
             className="rounded-md bg-[#711610] px-5 py-2 text-sm font-medium text-white hover:bg-[#5e120d]"

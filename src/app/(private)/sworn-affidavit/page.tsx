@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import BaseStepPage from "@/components/base-step-page";
+import SwornDeclarationForm from "@/components/sworn/sworn-declaration-form";
 
 export const metadata: Metadata = {
-  title: "sworn-affidavit",
-  description: "Paso 9 del flujo de inscripcion",
+  title: "Declaración jurada",
+  description: "Aceptación del reglamento de admisión",
 };
 
 export default function SwornAffidavitPage() {
-  return <BaseStepPage title="sworn-affidavit" prevHref="/resume" nextHref="/payment" />;
+  return <SwornDeclarationForm />;
 }

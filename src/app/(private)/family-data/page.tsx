@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import BaseStepPage from "@/components/base-step-page";
+import FamilyDataForm from "@/components/family/family-data-form";
 
 export const metadata: Metadata = {
-  title: "family-data",
-  description: "Paso 6 del flujo de inscripcion",
+  title: "Datos familiares",
+  description: "Registro de padre, madre y apoderado",
 };
 
 export default function FamilyDataPage() {
-  return <BaseStepPage title="family-data" prevHref="/documents" nextHref="/quiz" />;
+  return <FamilyDataForm />;
 }

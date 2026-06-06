@@ -1,580 +1,988 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import FacultySpecialtiesForm, {
-  type SpecialtiesSelection,
-} from "@/components/modality/faculty-specialties-form";
-import { FACULTIES } from "@/components/modality/faculties-data";
+import { useRouter } from "next/navigation";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ApiError } from "@/lib/api";
+import { AUTH_TOKEN_KEY } from "@/lib/auth";
+import {
+  AdmissionFaculty,
+  AdmissionModality,
+  CatalogOption,
+  SchoolOption,
+  UbigeoDepartment,
+  UbigeoDistrict,
+  UbigeoProvince,
+  getCountries,
+  getDepartments,
+  getDistricts,
+  getApplicantProgress,
+  getFaculties,
+  getModalities,
+  getProvinces,
+  getUbigeo,
+  saveModalityData,
+  searchSchools,
+} from "@/lib/applicant";
 
-type FinalModality = {
-  id: string;
+type VacancyRight = "with" | "without";
+type WizardStep = 1 | 2 | 3;
+
+type ModalityGroup = {
+  key: string;
   title: string;
   description: string;
-  imageUrl: string;
+  modalities: AdmissionModality[];
 };
 
-type Division = {
-  id: string;
-  title: string;
-  audience: string;
-  imageUrl: string;
-  modalities: FinalModality[];
-};
+const fallbackImage =
+  "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1200&q=80";
 
-type Screen = 1 | 2 | 3 | 4;
-
-type StoredSelection = {
-  divisionId: string;
-  divisionTitle: string;
-  modalityId: string;
-  modalityTitle: string;
-  selectedAt: string;
-};
-
-type StoredSpecialtiesSelection = SpecialtiesSelection & {
-  divisionId: string;
-  modalityId: string;
-  selectedAt: string;
-};
-
-type SpecialtiesFlow = "default" | "none";
-
-const STORAGE_MODALITY_KEY = "uni:selected_modality";
-const STORAGE_SPECIALTIES_KEY = "uni:selected_specialties";
-
-const divisions: Division[] = [
-  {
-    id: "iniciar-estudios",
-    title: "Iniciar estudios",
-    audience: "Para jovenes que recien culminaron la secundaria.",
-    imageUrl:
-      "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1200&q=80",
-    modalities: [
-      {
-        id: "ordinario",
-        title: "Ordinario",
-        description:
-          "Dirigido a postulantes que culminaron sus estudios de educacion secundaria en instituciones del pais o su equivalente en el extranjero.",
-        imageUrl:
-          "https://images.unsplash.com/photo-1456324504439-367cee3b3c32?auto=format&fit=crop&w=1200&q=80",
-      },
-      {
-        id: "primeros-puestos",
-        title: "Primeros Puestos",
-        description:
-          "Para alumnos que ocuparon los primeros puestos en su promocion escolar y cumplen los requisitos documentarios establecidos por admision.",
-        imageUrl:
-          "https://images.unsplash.com/photo-1513258496099-48168024aec0?auto=format&fit=crop&w=1200&q=80",
-      },
-      {
-        id: "deportista-alto-nivel",
-        title: "Deportista Calificado de Alto Nivel",
-        description:
-          "Para deportistas certificados por el IPD que desean iniciar o continuar estudios y presentan la documentacion adicional exigida.",
-        imageUrl:
-          "https://images.unsplash.com/photo-1526506118085-60ce8714f8c5?auto=format&fit=crop&w=1200&q=80",
-      },
-      {
-        id: "plan-integral-reparaciones",
-        title: "Plan Integral de Reparaciones",
-        description:
-          "Para egresados de secundaria o provenientes de otras universidades inscritos en el Registro Unico de Victimas de la Violencia.",
-        imageUrl:
-          "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=1200&q=80",
-      },
-      {
-        id: "persona-discapacidad-iniciar",
-        title: "Persona con Discapacidad",
-        description:
-          "Para postulantes calificados como personas con discapacidad, de acuerdo con la Ley N. 29973 y su reglamento.",
-        imageUrl:
-          "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80",
-      },
-    ],
+const groupDescriptions: Record<string, { title: string; description: string }> = {
+  ordinary: {
+    title: "Ordinario e ingreso directo",
+    description:
+      "Modalidades para iniciar estudios mediante examen general o por rendimiento en centros preuniversitarios UNI.",
   },
-  {
-    id: "continuar-estudios",
+  extraordinaryStart: {
+    title: "Extraordinarias para iniciar estudios",
+    description:
+      "Opciones con requisitos especiales para postulantes que inician una especialidad en la UNI.",
+  },
+  continueStudies: {
     title: "Continuar estudios",
-    audience: "Para personas que ya cursaron estudios superiores.",
-    imageUrl:
-      "https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=1200&q=80",
-    modalities: [
-      {
-        id: "diplomado-bachillerato-internacional",
-        title: "Diplomado con Bachillerato Internacional",
-        description:
-          "Para quienes obtuvieron diploma de Bachillerato Internacional y cumplen los requisitos academicos exigidos por admision.",
-        imageUrl:
-          "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1200&q=80",
-      },
-      {
-        id: "persona-discapacidad-continuar",
-        title: "Persona con Discapacidad (continuar estudios)",
-        description:
-          "Para postulantes con discapacidad provenientes de otras universidades que acreditan su condicion con certificado valido.",
-        imageUrl:
-          "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80",
-      },
-      {
-        id: "convenio-andres-bello",
-        title: "Convenio Andres Bello",
-        description:
-          "Para postulantes de estados miembros del convenio que desean iniciar o continuar estudios universitarios en la UNI.",
-        imageUrl:
-          "https://images.unsplash.com/photo-1460518451285-97b6aa326961?auto=format&fit=crop&w=1200&q=80",
-      },
-      {
-        id: "traslado-externo",
-        title: "Traslado Externo",
-        description:
-          "Para estudiantes de pregrado de universidades publicas o privadas del pais o extranjero que cumplen creditos y requisitos.",
-        imageUrl:
-          "https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1200&q=80",
-      },
-      {
-        id: "traslado-externo-no-licenciadas",
-        title: "Traslado Externo para estudiantes provenientes de universidades no licenciadas",
-        description:
-          "Para estudiantes de universidades que no alcanzaron licenciamiento SUNEDU, conforme a requisitos y documentacion establecida.",
-        imageUrl:
-          "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=1200&q=80",
-      },
-      {
-        id: "titulados-graduados-uni",
-        title: "Titulados o Graduados UNI",
-        description:
-          "Para quienes obtuvieron grado de bachiller o titulo profesional en la UNI y desean estudiar otra especialidad.",
-        imageUrl:
-          "https://images.unsplash.com/photo-1607013251379-e6eecfffe234?auto=format&fit=crop&w=1200&q=80",
-      },
-      {
-        id: "titulados-graduados-otra-universidad",
-        title: "Titulados o Graduados en otra universidad",
-        description:
-          "Para quienes obtuvieron grado o titulo universitario en el pais o en el extranjero y cumplen requisitos de admision.",
-        imageUrl:
-          "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1200&q=80",
-      },
-      {
-        id: "convenio-diplomatico",
-        title: "Convenio Diplomatico para Hijo o Conyuge de Diplomatico",
-        description:
-          "Para personas incluidas en convenios diplomaticos, hijos o conyuges de diplomaticos que desean iniciar o continuar estudios.",
-        imageUrl:
-          "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1200&q=80",
-      },
-    ],
+    description:
+      "Modalidades para postulantes que ya tienen estudios universitarios, grado o titulo previo.",
   },
-  {
-    id: "ingreso-directo",
-    title: "Ingreso Directo",
-    audience: "Division separada para postulacion por ingreso directo.",
-    imageUrl:
-      "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=1200&q=80",
-    modalities: [
-      {
-        id: "ingreso-directo-lima",
-        title: "Ingreso directo Lima",
-        description:
-          "Dirigido a alumnos del CEPRE-UNI matriculados en el ciclo correspondiente al concurso y que cumplen los requisitos de admision.",
-        imageUrl:
-          "https://images.unsplash.com/photo-1497486751825-1233686d5d80?auto=format&fit=crop&w=1200&q=80",
-      },
-      {
-        id: "ingreso-directo-juliaca",
-        title: "Ingreso directo Juliaca",
-        description:
-          "Dirigido a alumnos del CEPRE-UNI de la sede correspondiente, matriculados en el ciclo vigente y con requisitos completos.",
-        imageUrl:
-          "https://images.unsplash.com/photo-1488190211105-8b0e65b80b4e?auto=format&fit=crop&w=1200&q=80",
-      },
-    ],
-  },
-  {
-    id: "ingreso-escolar-nacional",
+  ien: {
     title: "Ingreso Escolar Nacional",
-    audience: "Para estudiantes que cursan el ultimo anio de secundaria.",
-    imageUrl:
-      "https://images.unsplash.com/photo-1472289065668-ce650ac443d2?auto=format&fit=crop&w=1200&q=80",
-    modalities: [
-      {
-        id: "ien",
-        title: "Ingreso Escolar Nacional",
-        description:
-          "Proceso de admision dirigido a estudiantes que cursan el ultimo anio de secundaria en instituciones educativas del pais.",
-        imageUrl:
-          "https://images.unsplash.com/photo-1532619187608-e5375cab36aa?auto=format&fit=crop&w=1200&q=80",
-      },
-    ],
+    description:
+      "Modalidad independiente para estudiantes del ultimo anio de secundaria, segun el reglamento de admision.",
   },
-  {
-    id: "talento-beca-18",
+  beca18: {
     title: "Talento Beca 18",
-    audience: "Para estudiantes vinculados al programa PRONABEC.",
-    imageUrl:
-      "https://images.unsplash.com/photo-1489710437720-ebb67ec84dd2?auto=format&fit=crop&w=1200&q=80",
-    modalities: [
-      {
-        id: "talento-beca-18",
-        title: "Talento Beca 18",
-        description:
-          "Dirigido a estudiantes del ultimo anio o egresados de secundaria inscritos o preseleccionados por PRONABEC que cumplen requisitos de la modalidad.",
-        imageUrl:
-          "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=1200&q=80",
-      },
-    ],
+    description:
+      "Modalidad independiente para postulantes vinculados a PRONABEC, con documentos propios.",
   },
+  interested: {
+    title: "Sin derecho a vacante",
+    description:
+      "Participa como interesado: rinde evaluaciones y recibe sus notas, sin acceder a una vacante.",
+  },
+};
+
+
+const groupOrder = [
+  "continueStudies",
+  "ordinary",
+  "extraordinaryStart",
+  "ien",
+  "beca18",
+  "interested",
 ];
 
-function getSpecialtiesFlow(_modalityId: string): SpecialtiesFlow {
-  return "default";
-}
+const modalityGroupByCode: Record<string, string> = {
+  ORD: "ordinary",
+  "ID-CEPRE": "ordinary",
+  "ID-JUL": "ordinary",
+  PP: "extraordinaryStart",
+  DCAR: "extraordinaryStart",
+  BI: "extraordinaryStart",
+  PIR: "extraordinaryStart",
+  PCD: "extraordinaryStart",
+  CAB: "extraordinaryStart",
+  DIP: "extraordinaryStart",
+  TE: "continueStudies",
+  "TE-NL": "continueStudies",
+  "TG-UNI": "continueStudies",
+  "TG-EXT": "continueStudies",
+  IEN: "ien",
+  BECA18: "beca18",
+  INTERESADO: "interested",
+};
 
 export default function ModalityWizard() {
-  const [screen, setScreen] = useState<Screen>(1);
-  const [selectedDivisionId, setSelectedDivisionId] = useState<string | null>(null);
-  const [selectedModalityId, setSelectedModalityId] = useState<string | null>(null);
-  const [savedSelection, setSavedSelection] = useState<StoredSelection | null>(null);
-  const [savedSpecialties, setSavedSpecialties] = useState<StoredSpecialtiesSelection | null>(null);
-  const [showEditionFlow, setShowEditionFlow] = useState(false);
+  const router = useRouter();
+  const [token, setToken] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState<WizardStep>(1);
+  const [vacancyRight, setVacancyRight] = useState<VacancyRight | null>(null);
+  const [modalities, setModalities] = useState<AdmissionModality[]>([]);
+  const [faculties, setFaculties] = useState<AdmissionFaculty[]>([]);
+  const [countries, setCountries] = useState<CatalogOption[]>([]);
+  const [departments, setDepartments] = useState<UbigeoDepartment[]>([]);
+  const [provinces, setProvinces] = useState<UbigeoProvince[]>([]);
+  const [districts, setDistricts] = useState<UbigeoDistrict[]>([]);
+  const [schoolOptions, setSchoolOptions] = useState<SchoolOption[]>([]);
+  const [modalityId, setModalityId] = useState("");
+  const [facultyId, setFacultyId] = useState("");
+  const [speciality1Id, setSpeciality1Id] = useState("");
+  const [speciality2Id, setSpeciality2Id] = useState("");
+  const [schoolCountryId, setSchoolCountryId] = useState("");
+  const [schoolDepartmentCode, setSchoolDepartmentCode] = useState("");
+  const [schoolProvinceCode, setSchoolProvinceCode] = useState("");
+  const [schoolDistrictId, setSchoolDistrictId] = useState("");
+  const [schoolQuery, setSchoolQuery] = useState("");
+  const [schoolId, setSchoolId] = useState("");
+  const [foreignSchoolName, setForeignSchoolName] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isModalitiesLoading, setIsModalitiesLoading] = useState(false);
+  const [isSchoolsLoading, setIsSchoolsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    const rawModality = sessionStorage.getItem(STORAGE_MODALITY_KEY);
-    if (rawModality) {
-      try {
-        const parsed = JSON.parse(rawModality) as StoredSelection;
-        setSavedSelection(parsed);
-      } catch {
-        sessionStorage.removeItem(STORAGE_MODALITY_KEY);
-      }
-    }
-
-    const rawSpecialties = sessionStorage.getItem(STORAGE_SPECIALTIES_KEY);
-    if (rawSpecialties) {
-      try {
-        const parsed = JSON.parse(rawSpecialties) as StoredSpecialtiesSelection;
-        setSavedSpecialties(parsed);
-      } catch {
-        sessionStorage.removeItem(STORAGE_SPECIALTIES_KEY);
-      }
-    }
-  }, []);
-
-  const selectedDivision = useMemo(
-    () => divisions.find((division) => division.id === selectedDivisionId) ?? null,
-    [selectedDivisionId],
+  const selectedFaculty = useMemo(
+    () => faculties.find((faculty) => String(faculty.id) === facultyId) ?? null,
+    [faculties, facultyId]
   );
 
   const selectedModality = useMemo(
-    () => selectedDivision?.modalities.find((item) => item.id === selectedModalityId) ?? null,
-    [selectedDivision, selectedModalityId],
+    () => modalities.find((modality) => String(modality.id) === modalityId) ?? null,
+    [modalities, modalityId]
   );
 
-  const specialtiesFlow = useMemo(
-    () => (selectedModality ? getSpecialtiesFlow(selectedModality.id) : "none"),
-    [selectedModality],
+  const secondSpecialityOptions = useMemo(
+    () => selectedFaculty?.majors.filter((major) => String(major.id) !== speciality1Id) ?? [],
+    [selectedFaculty, speciality1Id]
   );
 
-  const openDivision = (divisionId: string) => {
-    setSelectedDivisionId(divisionId);
-    setSelectedModalityId(null);
-    setScreen(2);
+  const modalityGroups = useMemo(() => groupModalities(modalities), [modalities]);
+
+  const selectedSchoolCountry = useMemo(
+    () => countries.find((country) => String(country.id) === schoolCountryId) ?? null,
+    [countries, schoolCountryId]
+  );
+
+  const schoolCountryIsPeru = useMemo(
+    () => selectedSchoolCountry
+      ? selectedSchoolCountry.code === "PE" ||
+        ["PERU", "PERÚ"].includes(selectedSchoolCountry.name.toUpperCase())
+      : false,
+    [selectedSchoolCountry]
+  );
+
+  const canSubmitAcademicData =
+    !!facultyId &&
+    !!speciality1Id &&
+    !!schoolCountryId &&
+    (schoolCountryIsPeru ? !!schoolDistrictId && !!schoolId : !!foreignSchoolName.trim());
+
+  useEffect(() => {
+    const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
+    if (!storedToken) {
+      router.replace("/login-registro");
+      return;
+    }
+
+    setToken(storedToken);
+
+    Promise.all([getFaculties(), getCountries(storedToken), getDepartments(), getApplicantProgress(storedToken)])
+      .then(async ([facultyResponse, countryResponse, departmentResponse, progressResponse]) => {
+        setFaculties(facultyResponse.faculties);
+        setCountries(countryResponse.data);
+        setDepartments(departmentResponse.data);
+
+        const applicant = progressResponse.applicant;
+        const peruCountry = countryResponse.data.find(
+          (country) =>
+            country.code === "PE" || ["PERU", "PERÚ"].includes(country.name.toUpperCase())
+        );
+
+        if (typeof applicant?.has_vacancy_right === "boolean") {
+          setVacancyRight(applicant.has_vacancy_right ? "with" : "without");
+          setCurrentStep(applicant.modality?.id ? 3 : 2);
+        }
+
+        if (applicant?.modality?.id) {
+          setModalityId(String(applicant.modality.id));
+        }
+
+        if (applicant?.faculty?.id) {
+          setFacultyId(String(applicant.faculty.id));
+        }
+
+        if (applicant?.speciality1?.id) {
+          setSpeciality1Id(String(applicant.speciality1.id));
+        }
+
+        if (applicant?.speciality2?.id) {
+          setSpeciality2Id(String(applicant.speciality2.id));
+        }
+
+        if (applicant?.school) {
+          setSchoolId(String(applicant.school.id));
+          setSchoolQuery(applicant.school.name);
+          setForeignSchoolName(applicant.school.name);
+          setSchoolCountryId(String(applicant.school.country_id ?? peruCountry?.id ?? ""));
+
+          if (applicant.school.ubigeo_id) {
+            setSchoolDistrictId(String(applicant.school.ubigeo_id));
+            try {
+              const ubigeoResponse = await getUbigeo(applicant.school.ubigeo_id);
+              const code = ubigeoResponse.data.code;
+              setSchoolDepartmentCode(`${code.slice(0, 2)}0000`);
+              setSchoolProvinceCode(`${code.slice(0, 4)}00`);
+            } catch {
+              // Si no se puede reconstruir el ubigeo, el usuario puede volver a escogerlo.
+            }
+          }
+        } else if (peruCountry) {
+          setSchoolCountryId(String(peruCountry.id));
+        }
+      })
+      .catch((caughtError) => {
+        setError(
+          caughtError instanceof ApiError
+            ? caughtError.message
+            : "No se pudieron cargar facultades y modalidades."
+        );
+      })
+      .finally(() => setIsLoading(false));
+  }, [router]);
+
+  useEffect(() => {
+    if (!schoolDepartmentCode) {
+      setProvinces([]);
+      return;
+    }
+
+    getProvinces(schoolDepartmentCode)
+      .then((response) => setProvinces(response.data))
+      .catch(() => setProvinces([]));
+  }, [schoolDepartmentCode]);
+
+  useEffect(() => {
+    if (!schoolProvinceCode) {
+      setDistricts([]);
+      return;
+    }
+
+    getDistricts(schoolProvinceCode)
+      .then((response) => setDistricts(response.data))
+      .catch(() => setDistricts([]));
+  }, [schoolProvinceCode]);
+
+  useEffect(() => {
+    if (!schoolCountryIsPeru || !schoolDistrictId || schoolQuery.trim().length < 2) {
+      setSchoolOptions([]);
+      return;
+    }
+
+    setIsSchoolsLoading(true);
+    searchSchools(Number(schoolDistrictId), schoolQuery.trim())
+      .then((response) => setSchoolOptions(response.schools))
+      .catch(() => setSchoolOptions([]))
+      .finally(() => setIsSchoolsLoading(false));
+  }, [schoolCountryIsPeru, schoolDistrictId, schoolQuery]);
+
+  useEffect(() => {
+    if (!vacancyRight) {
+      setModalities([]);
+      return;
+    }
+
+    setIsModalitiesLoading(true);
+    getModalities(vacancyRight === "with")
+      .then((response) => {
+        setModalities(response.modalities);
+        setModalityId((current) =>
+          response.modalities.some((modality) => String(modality.id) === current) ? current : ""
+        );
+      })
+      .catch((caughtError) => {
+        setError(
+          caughtError instanceof ApiError
+            ? caughtError.message
+            : "No se pudieron cargar las modalidades."
+        );
+      })
+      .finally(() => setIsModalitiesLoading(false));
+  }, [vacancyRight]);
+
+  const chooseVacancyRight = (value: VacancyRight) => {
+    setVacancyRight(value);
+    setCurrentStep(1);
+    setModalityId("");
+    setFacultyId("");
+    setSpeciality1Id("");
+    setSpeciality2Id("");
+    resetSchoolSelection(false);
+    setError(null);
+    setMessage(null);
   };
 
-  const openModality = (modalityId: string) => {
-    setSelectedModalityId(modalityId);
-    setScreen(3);
+  const chooseModality = (id: number) => {
+    setModalityId(String(id));
+    setFacultyId("");
+    setSpeciality1Id("");
+    setSpeciality2Id("");
+    resetSchoolSelection(false);
+    setError(null);
+    setMessage(null);
   };
 
-  const saveSelection = () => {
-    if (!selectedDivision || !selectedModality) return;
+  const handleFacultyChange = (value: string) => {
+    setFacultyId(value);
+    setSpeciality1Id("");
+    setSpeciality2Id("");
+  };
 
-    const selection: StoredSelection = {
-      divisionId: selectedDivision.id,
-      divisionTitle: selectedDivision.title,
-      modalityId: selectedModality.id,
-      modalityTitle: selectedModality.title,
-      selectedAt: new Date().toISOString(),
-    };
-
-    sessionStorage.setItem(STORAGE_MODALITY_KEY, JSON.stringify(selection));
-    setSavedSelection(selection);
-
-    if (savedSpecialties && savedSpecialties.modalityId !== selectedModality.id) {
-      sessionStorage.removeItem(STORAGE_SPECIALTIES_KEY);
-      setSavedSpecialties(null);
+  const resetSchoolSelection = (keepCountry: boolean) => {
+    setSchoolDepartmentCode("");
+    setSchoolProvinceCode("");
+    setSchoolDistrictId("");
+    setSchoolQuery("");
+    setSchoolId("");
+    setForeignSchoolName("");
+    setSchoolOptions([]);
+    if (!keepCountry) {
+      setSchoolCountryId((current) => current);
     }
   };
 
-  const saveSpecialtiesSelection = (selection: SpecialtiesSelection) => {
-    if (!selectedDivision || !selectedModality) return;
-
-    const payload: StoredSpecialtiesSelection = {
-      ...selection,
-      divisionId: selectedDivision.id,
-      modalityId: selectedModality.id,
-      selectedAt: new Date().toISOString(),
-    };
-
-    sessionStorage.setItem(STORAGE_SPECIALTIES_KEY, JSON.stringify(payload));
-    setSavedSpecialties(payload);
+  const handleSchoolCountryChange = (value: string) => {
+    setSchoolCountryId(value);
+    resetSchoolSelection(true);
   };
 
-  const isCurrentSelectionSaved = Boolean(
-    savedSelection &&
-      selectedDivision &&
-      selectedModality &&
-      savedSelection.divisionId === selectedDivision.id &&
-      savedSelection.modalityId === selectedModality.id,
-  );
+  const handleSchoolDepartmentChange = (value: string) => {
+    setSchoolDepartmentCode(value);
+    setSchoolProvinceCode("");
+    setSchoolDistrictId("");
+    setSchoolQuery("");
+    setSchoolId("");
+    setSchoolOptions([]);
+  };
 
-  const isCurrentSpecialtiesSaved = Boolean(
-    savedSpecialties &&
-      selectedDivision &&
-      selectedModality &&
-      savedSpecialties.divisionId === selectedDivision.id &&
-      savedSpecialties.modalityId === selectedModality.id,
-  );
+  const handleSchoolProvinceChange = (value: string) => {
+    setSchoolProvinceCode(value);
+    setSchoolDistrictId("");
+    setSchoolQuery("");
+    setSchoolId("");
+    setSchoolOptions([]);
+  };
 
-  const hasCompletedSetup = Boolean(savedSelection && savedSpecialties);
+  const handleSchoolDistrictChange = (value: string) => {
+    setSchoolDistrictId(value);
+    setSchoolQuery("");
+    setSchoolId("");
+    setSchoolOptions([]);
+  };
 
-  const currentInitialSpecialties: SpecialtiesSelection | null = isCurrentSpecialtiesSaved && savedSpecialties
-    ? {
-        facultyCode: savedSpecialties.facultyCode,
-        facultyName: savedSpecialties.facultyName,
-        firstSpecialtyCode: savedSpecialties.firstSpecialtyCode,
-        firstSpecialtyName: savedSpecialties.firstSpecialtyName,
-        secondSpecialtyCode: savedSpecialties.secondSpecialtyCode,
-        secondSpecialtyName: savedSpecialties.secondSpecialtyName,
-      }
-    : null;
+  const continueFromVacancy = () => {
+    if (!vacancyRight) {
+      setError("Seleccione si el postulante tiene derecho a vacante.");
+      return;
+    }
+
+    setError(null);
+    setCurrentStep(2);
+  };
+
+  const continueFromModality = () => {
+    if (!modalityId) {
+      setError("Seleccione una modalidad para continuar.");
+      return;
+    }
+
+    setError(null);
+    setCurrentStep(3);
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!token || !vacancyRight) return;
+
+    setError(null);
+    setMessage(null);
+    setIsSubmitting(true);
+
+    try {
+      await saveModalityData(token, {
+        has_vacancy_right: vacancyRight === "with",
+        modality_id: Number(modalityId),
+        faculty_id: Number(facultyId),
+        speciality1_id: Number(speciality1Id),
+        speciality2_id: speciality2Id ? Number(speciality2Id) : null,
+        school_country_id: Number(schoolCountryId),
+        school_ubigeo_id: schoolCountryIsPeru ? Number(schoolDistrictId) : null,
+        school_id: schoolCountryIsPeru ? Number(schoolId) : null,
+        school_name: schoolCountryIsPeru ? null : foreignSchoolName.trim(),
+      });
+
+      window.dispatchEvent(new Event("admision-progress-updated"));
+      setMessage("Modalidad, facultad, carrera y colegio guardados correctamente.");
+      router.push("/documents");
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof ApiError
+          ? caughtError.message
+          : "No se pudo guardar la modalidad."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <section className="mx-auto flex w-full max-w-3xl flex-1 items-center justify-center px-6 py-10 text-sm font-medium text-[#711610]">
+        Cargando modalidades...
+      </section>
+    );
+  }
 
   return (
-    <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-6 py-10">
-      {savedSelection && (
-        <div className="mb-3 rounded-md border border-[#711610]/30 bg-[#E6D9AA]/30 px-4 py-3 text-sm text-[#711610]">
-          Modalidad guardada en sesion: <strong>{savedSelection.modalityTitle}</strong>
+    <section className="mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center px-4 py-8 md:px-6">
+      <PageHeader currentStep={currentStep} />
+
+      {(error || message) && (
+        <div
+          className={`mb-5 rounded-md border px-4 py-3 text-sm ${
+            error
+              ? "border-red-200 bg-red-50 text-red-700"
+              : "border-green-200 bg-green-50 text-green-700"
+          }`}
+        >
+          {error ?? message}
         </div>
       )}
 
-      {savedSpecialties && (
-        <div className="mb-4 rounded-md border border-[#711610]/30 bg-[#E6D9AA]/20 px-4 py-3 text-sm text-[#711610]">
-          Especialidades guardadas: <strong>{savedSpecialties.firstSpecialtyName}</strong>
-          {savedSpecialties.secondSpecialtyName ? ` y ${savedSpecialties.secondSpecialtyName}` : ""}
+      {currentStep === 1 && (
+        <div className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            <VacancyCard
+              title="Con derecho a vacante"
+              description="Postula para competir por una plaza de ingreso a una especialidad UNI, segun modalidad y cuadro de vacantes."
+              imageUrl="https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1200&q=80"
+              selected={vacancyRight === "with"}
+              onClick={() => chooseVacancyRight("with")}
+            />
+            <VacancyCard
+              title="Sin derecho a vacante"
+              description="Participa como interesado: rinde evaluaciones y recibe sus notas, pero no accede a una vacante."
+              imageUrl="https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=1200&q=80"
+              selected={vacancyRight === "without"}
+              onClick={() => chooseVacancyRight("without")}
+            />
+          </div>
+
+          <StepFooter
+            backHref="/personal-data"
+            nextLabel="Continuar"
+            nextDisabled={!vacancyRight}
+            onNext={continueFromVacancy}
+          />
         </div>
       )}
 
-      {screen === 1 && hasCompletedSetup && !showEditionFlow && (
-        <>
-          <header className="mb-6 rounded-lg border border-[#711610]/20 bg-white p-5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#711610]">
-              Modalidad ya configurada
-            </p>
-            <h1 className="mt-1 text-2xl font-semibold text-[#711610] md:text-3xl">Continuar proceso</h1>
-            <p className="mt-2 text-sm text-[#711610]">
-              Ya registraste modalidad y especialidades. Puedes continuar directamente o modificar la selección.
-            </p>
-          </header>
+      {currentStep === 2 && (
+        <div className="space-y-6">
+          {isModalitiesLoading ? (
+            <div className="rounded-lg border border-[#9A999D]/30 bg-white p-6 text-sm font-medium text-[#711610]">
+              Cargando modalidades...
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {modalityGroups.map((group) => (
+                <section
+                  key={group.key}
+                  className="rounded-lg border border-[#9A999D]/30 bg-white p-4 md:p-5"
+                >
+                  <div className="mb-4 max-w-3xl">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[#9A999D]">
+                      Grupo de modalidad
+                    </p>
+                    <h2 className="mt-1 text-xl font-semibold text-[#711610]">
+                      {group.title}
+                    </h2>
+                    <p className="mt-2 text-sm leading-6 text-[#711610]">
+                      {group.description}
+                    </p>
+                  </div>
 
-          <article className="mb-6 rounded-lg border border-[#9A999D]/30 bg-white p-5 text-sm text-[#711610]">
-            <p>
-              Modalidad: <strong>{savedSelection?.modalityTitle}</strong>
-            </p>
-            <p className="mt-2">
-              Especialidades: <strong>{savedSpecialties?.firstSpecialtyName}</strong>
-              {savedSpecialties?.secondSpecialtyName ? ` y ${savedSpecialties.secondSpecialtyName}` : ""}
-            </p>
-          </article>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {group.modalities.map((modality) => (
+                      <ModalityCard
+                        key={modality.id}
+                        modality={modality}
+                        selected={String(modality.id) === modalityId}
+                        onClick={() => chooseModality(modality.id)}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          )}
 
-          <footer className="mt-2 flex flex-wrap items-center justify-between gap-3">
-            <Link
-              href="/documents"
-              className="rounded-md bg-[#711610] px-5 py-2 text-sm font-medium text-white hover:bg-[#5e120d]"
-            >
-              Continuar a documentos
-            </Link>
-
-            <button
-              type="button"
-              onClick={() => setShowEditionFlow(true)}
-              className="rounded-md border border-[#711610] px-5 py-2 text-sm font-medium text-[#711610] hover:bg-[#711610]/10"
-            >
-              Modificar modalidad
-            </button>
-          </footer>
-        </>
+          <StepFooter
+            backLabel="Regresar"
+            nextLabel="Continuar"
+            nextDisabled={!modalityId}
+            onBack={() => setCurrentStep(1)}
+            onNext={continueFromModality}
+          />
+        </div>
       )}
 
-      {screen === 1 && (!hasCompletedSetup || showEditionFlow) && (
-        <>
-          <header className="mb-6 rounded-lg border border-[#711610]/20 bg-white p-5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#711610]">Paso interno 1 de 4</p>
-            <h1 className="mt-1 text-2xl font-semibold text-[#711610] md:text-3xl">Modalidad - Division</h1>
-            <p className="mt-2 text-sm text-[#711610]">
-              Seleccione la division correcta del postulante. No seleccione una division del padre, madre o apoderado.
-            </p>
-          </header>
-
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {divisions.map((division) => (
-              <button
-                key={division.id}
-                type="button"
-                onClick={() => openDivision(division.id)}
-                className="overflow-hidden rounded-lg border border-[#9A999D]/30 bg-white text-left transition hover:border-[#711610]/50 hover:shadow-md"
-              >
-                <img src={division.imageUrl} alt={division.title} className="h-36 w-full object-cover" />
-                <div className="p-4">
-                  <h2 className="text-lg font-semibold text-[#711610]">{division.title}</h2>
-                  <p className="mt-1 text-sm text-[#711610]">{division.audience}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          <footer className="mt-6 flex items-center justify-between gap-3">
-            <Link
-              href="/personal-data"
-              className="rounded-md border border-[#711610] px-5 py-2 text-sm font-medium text-[#711610] hover:bg-[#711610]/10"
-            >
-              Regresar
-            </Link>
-            <button
-              type="button"
-              disabled
-              className="cursor-not-allowed rounded-md bg-[#9A999D] px-5 py-2 text-sm font-medium text-white"
-            >
-              Seleccione una division
-            </button>
-          </footer>
-        </>
+      {currentStep === 3 && !selectedModality && (
+        <div className="rounded-lg border border-[#9A999D]/30 bg-white p-6 text-sm font-medium text-[#711610]">
+          Cargando modalidad seleccionada...
+        </div>
       )}
 
-      {screen === 2 && selectedDivision && (
-        <>
-          <header className="mb-6 rounded-lg border border-[#711610]/20 bg-white p-5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#711610]">Paso interno 2 de 4</p>
-            <h1 className="mt-1 text-2xl font-semibold text-[#711610] md:text-3xl">{selectedDivision.title}</h1>
-            <p className="mt-2 text-sm text-[#711610]">Seleccione la modalidad final.</p>
-          </header>
-
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {selectedDivision.modalities.map((modality) => (
-              <button
-                key={modality.id}
-                type="button"
-                onClick={() => openModality(modality.id)}
-                className="overflow-hidden rounded-lg border border-[#9A999D]/30 bg-white text-left transition hover:border-[#711610]/50 hover:shadow-md"
-              >
-                <img src={modality.imageUrl} alt={modality.title} className="h-32 w-full object-cover" />
-                <div className="p-4">
-                  <h2 className="text-base font-semibold text-[#711610]">{modality.title}</h2>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          <footer className="mt-6 flex items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={() => setScreen(1)}
-              className="rounded-md border border-[#711610] px-5 py-2 text-sm font-medium text-[#711610] hover:bg-[#711610]/10"
-            >
-              Regresar
-            </button>
-            <button
-              type="button"
-              disabled
-              className="cursor-not-allowed rounded-md bg-[#9A999D] px-5 py-2 text-sm font-medium text-white"
-            >
-              Seleccione modalidad final
-            </button>
-          </footer>
-        </>
-      )}
-
-      {screen === 3 && selectedDivision && selectedModality && (
-        <>
-          <header className="mb-6 rounded-lg border border-[#711610]/20 bg-white p-5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#711610]">Paso interno 3 de 4</p>
-            <h1 className="mt-1 text-2xl font-semibold text-[#711610] md:text-3xl">{selectedModality.title}</h1>
-            <p className="mt-2 text-sm text-[#711610]">
-              Revise esta descripcion y confirme que corresponde al postulante.
-            </p>
-          </header>
-
-          <article className="overflow-hidden rounded-lg border border-[#9A999D]/30 bg-white">
-            <img src={selectedModality.imageUrl} alt={selectedModality.title} className="h-64 w-full object-cover" />
-            <div className="space-y-3 p-5">
-              <p className="text-sm text-[#711610]">Division: {selectedDivision.title}</p>
-              <p className="text-sm text-[#711610]">{selectedModality.description}</p>
-              <p className="rounded-md border border-[#711610]/20 bg-[#E6D9AA]/25 p-3 text-sm text-[#711610]">
-                Importante: esta modalidad debe corresponder al postulante. No registrar modalidad del padre, madre o
-                apoderado.
+      {currentStep === 3 && selectedModality && (
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <section className="overflow-hidden rounded-lg border border-[#9A999D]/30 bg-white">
+            <div
+              className="h-56 bg-cover bg-center"
+              style={{
+                backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0.1), rgba(0,0,0,0.55)), url(${selectedModality.image_url ?? fallbackImage})`,
+              }}
+            />
+            <div className="space-y-2 p-5">
+              <p className="text-xs font-semibold uppercase text-[#711610]">
+                Modalidad seleccionada
+              </p>
+              <h2 className="text-xl font-semibold text-[#711610]">
+                {selectedModality.name}
+              </h2>
+              <p className="text-sm font-semibold text-[#711610]">
+                {selectedModality.name_regulation}
+              </p>
+              <p className="text-sm leading-6 text-[#711610]">
+                {selectedModality.description}
               </p>
             </div>
-          </article>
+          </section>
 
-          <footer className="mt-6 flex flex-wrap items-center justify-between gap-3">
+          <section className="space-y-5 rounded-lg border border-[#9A999D]/30 bg-white p-5">
+            <div className="max-w-3xl">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#9A999D]">
+                Facultad y especialidad
+              </p>
+              <h2 className="mt-1 text-xl font-semibold text-[#711610]">
+                Elija la postulacion
+              </h2>
+            </div>
+
+            <label className="block text-sm">
+              <span className="mb-1 block font-medium text-[#711610]">Facultad</span>
+              <select
+                value={facultyId}
+                onChange={(event) => handleFacultyChange(event.target.value)}
+                className="form-input"
+                required
+              >
+                <option value="">Seleccione facultad</option>
+                {faculties.map((faculty) => (
+                  <option key={faculty.id} value={faculty.id}>
+                    {faculty.acronym} - {faculty.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {selectedFaculty && (
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="block text-sm">
+                  <span className="mb-1 block font-medium text-[#711610]">Carrera 1</span>
+                  <select
+                    value={speciality1Id}
+                    onChange={(event) => {
+                      setSpeciality1Id(event.target.value);
+                      if (event.target.value === speciality2Id) {
+                        setSpeciality2Id("");
+                      }
+                    }}
+                    className="form-input"
+                    required
+                  >
+                    <option value="">Seleccione carrera</option>
+                    {selectedFaculty.majors.map((major) => (
+                      <option key={major.id} value={major.id}>
+                        {major.code} - {major.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block text-sm">
+                  <span className="mb-1 block font-medium text-[#711610]">
+                    Carrera 2 opcional
+                  </span>
+                  <select
+                    value={speciality2Id}
+                    onChange={(event) => setSpeciality2Id(event.target.value)}
+                    className="form-input"
+                    disabled={!speciality1Id || secondSpecialityOptions.length === 0}
+                  >
+                    <option value="">Sin segunda carrera</option>
+                    {secondSpecialityOptions.map((major) => (
+                      <option key={major.id} value={major.id}>
+                        {major.code} - {major.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
+          </section>
+
+          <section className="space-y-5 rounded-lg border border-[#9A999D]/30 bg-white p-5">
+            <div className="max-w-3xl">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#9A999D]">
+                Colegio de procedencia
+              </p>
+              <h2 className="mt-1 text-xl font-semibold text-[#711610]">
+                Donde culmino secundaria
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-[#711610]">
+                Si el colegio está fuera del Peru, solo indique el pais y el nombre del colegio.
+              </p>
+            </div>
+
+            <label className="block text-sm">
+              <span className="mb-1 block font-medium text-[#711610]">Pais del colegio</span>
+              <select
+                value={schoolCountryId}
+                onChange={(event) => handleSchoolCountryChange(event.target.value)}
+                className="form-input"
+                required
+              >
+                <option value="">Seleccione pais</option>
+                {countries.map((country) => (
+                  <option key={country.id} value={country.id}>
+                    {country.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {schoolCountryIsPeru ? (
+              <div className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-3">
+                  <label className="block text-sm">
+                    <span className="mb-1 block font-medium text-[#711610]">Departamento</span>
+                    <select
+                      value={schoolDepartmentCode}
+                      onChange={(event) => handleSchoolDepartmentChange(event.target.value)}
+                      className="form-input"
+                      required
+                    >
+                      <option value="">Seleccione</option>
+                      {departments.map((department) => (
+                        <option key={department.code} value={department.code}>
+                          {department.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="block text-sm">
+                    <span className="mb-1 block font-medium text-[#711610]">Provincia</span>
+                    <select
+                      value={schoolProvinceCode}
+                      onChange={(event) => handleSchoolProvinceChange(event.target.value)}
+                      className="form-input"
+                      disabled={!schoolDepartmentCode}
+                      required
+                    >
+                      <option value="">Seleccione</option>
+                      {provinces.map((province) => (
+                        <option key={province.code} value={province.code}>
+                          {province.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="block text-sm">
+                    <span className="mb-1 block font-medium text-[#711610]">Distrito</span>
+                    <select
+                      value={schoolDistrictId}
+                      onChange={(event) => handleSchoolDistrictChange(event.target.value)}
+                      className="form-input"
+                      disabled={!schoolProvinceCode}
+                      required
+                    >
+                      <option value="">Seleccione</option>
+                      {districts.map((district) => (
+                        <option key={district.id} value={district.id}>
+                          {district.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <label className="block text-sm">
+                  <span className="mb-1 block font-medium text-[#711610]">Buscar colegio</span>
+                  <input
+                    value={schoolQuery}
+                    onChange={(event) => {
+                      setSchoolQuery(event.target.value);
+                      setSchoolId("");
+                    }}
+                    className="form-input"
+                    disabled={!schoolDistrictId}
+                    placeholder="Escriba al menos 2 letras del colegio"
+                    required
+                  />
+                </label>
+
+                <label className="block text-sm">
+                  <span className="mb-1 block font-medium text-[#711610]">Colegio</span>
+                  <select
+                    value={schoolId}
+                    onChange={(event) => {
+                      const selected = schoolOptions.find(
+                        (school) => String(school.id) === event.target.value
+                      );
+                      setSchoolId(event.target.value);
+                      if (selected) setSchoolQuery(selected.name);
+                    }}
+                    className="form-input"
+                    disabled={!schoolDistrictId || schoolQuery.trim().length < 2 || isSchoolsLoading}
+                    required
+                  >
+                    <option value="">
+                      {isSchoolsLoading ? "Buscando colegios..." : "Seleccione colegio"}
+                    </option>
+                    {schoolId && !schoolOptions.some((school) => String(school.id) === schoolId) && (
+                      <option value={schoolId}>{schoolQuery}</option>
+                    )}
+                    {schoolOptions.map((school) => (
+                      <option key={school.id} value={school.id}>
+                        {school.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            ) : (
+              <label className="block text-sm">
+                <span className="mb-1 block font-medium text-[#711610]">Nombre del colegio</span>
+                <input
+                  value={foreignSchoolName}
+                  onChange={(event) => setForeignSchoolName(event.target.value)}
+                  className="form-input"
+                  placeholder="Colegio donde culmino secundaria"
+                  required
+                />
+              </label>
+            )}
+          </section>
+
+          <footer className="flex flex-wrap items-center justify-between gap-3">
             <button
               type="button"
-              onClick={() => setScreen(2)}
+              onClick={() => setCurrentStep(2)}
               className="rounded-md border border-[#711610] px-5 py-2 text-sm font-medium text-[#711610] hover:bg-[#711610]/10"
             >
               Regresar
             </button>
-
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={saveSelection}
-                className="rounded-md bg-[#711610] px-5 py-2 text-sm font-medium text-white hover:bg-[#5e120d]"
-              >
-                Elegir esta
-              </button>
-
-              {isCurrentSelectionSaved ? (
-                specialtiesFlow === "default" ? (
-                  <button
-                    type="button"
-                    onClick={() => setScreen(4)}
-                    className="rounded-md border border-[#711610] px-5 py-2 text-sm font-medium text-[#711610] hover:bg-[#711610]/10"
-                  >
-                    Siguiente
-                  </button>
-                ) : (
-                  <Link
-                    href="/documents"
-                    className="rounded-md border border-[#711610] px-5 py-2 text-sm font-medium text-[#711610] hover:bg-[#711610]/10"
-                  >
-                    Siguiente
-                  </Link>
-                )
-              ) : (
-                <button
-                  type="button"
-                  disabled
-                  className="cursor-not-allowed rounded-md border border-[#9A999D] px-5 py-2 text-sm font-medium text-[#9A999D]"
-                >
-                  Siguiente
-                </button>
-              )}
-            </div>
+            <button
+              type="submit"
+              disabled={isSubmitting || !canSubmitAcademicData}
+              className="rounded-md bg-[#711610] px-5 py-2 text-sm font-medium text-white hover:bg-[#5e120d] disabled:cursor-not-allowed disabled:bg-[#9A999D]"
+            >
+              {isSubmitting ? "Guardando..." : "Guardar y continuar"}
+            </button>
           </footer>
-        </>
-      )}
-
-      {screen === 4 && selectedDivision && selectedModality && specialtiesFlow === "default" && (
-        <FacultySpecialtiesForm
-          faculties={FACULTIES}
-          initialSelection={currentInitialSpecialties}
-          isSaved={isCurrentSpecialtiesSaved}
-          onBack={() => setScreen(3)}
-          onSave={saveSpecialtiesSelection}
-          continueHref="/documents"
-        />
+        </form>
       )}
     </section>
+  );
+}
+
+function groupModalities(modalities: AdmissionModality[]) {
+  const groups = new Map<string, AdmissionModality[]>();
+
+  modalities.forEach((modality) => {
+    const key =
+      modalityGroupByCode[modality.code] ??
+      (modality.requires_vacancy_right
+        ? modality.start_studies
+          ? "extraordinaryStart"
+          : "continueStudies"
+        : "interested");
+
+    groups.set(key, [...(groups.get(key) ?? []), modality]);
+  });
+
+  return groupOrder
+    .map((key): ModalityGroup | null => {
+      const groupModalitiesForKey = groups.get(key) ?? [];
+      const metadata = groupDescriptions[key];
+
+      if (groupModalitiesForKey.length === 0 || !metadata) {
+        return null;
+      }
+
+      return {
+        key,
+        title: metadata.title,
+        description: metadata.description,
+        modalities: groupModalitiesForKey,
+      };
+    })
+    .filter((group): group is ModalityGroup => group !== null);
+}
+
+function PageHeader({ currentStep }: { currentStep: WizardStep }) {
+  const headers: Record<WizardStep, { kicker: string; title: string; copy: string }> = {
+    1: {
+      kicker: "Paso 1 de 3",
+      title: "Derecho a vacante",
+      copy: "Indique si el postulante participa para alcanzar una vacante o solo como interesado.",
+    },
+    2: {
+      kicker: "Paso 2 de 3",
+      title: "Modalidad de admision",
+      copy: "Seleccione una modalidad dentro del grupo que corresponda al reglamento de admision.",
+    },
+    3: {
+      kicker: "Paso 3 de 3",
+      title: "Facultad, especialidad y colegio",
+      copy: "Elija la especialidad a la que postula y registre donde culmino secundaria.",
+    },
+  };
+
+  const header = headers[currentStep];
+
+  return (
+    <header className="mb-6 rounded-lg border border-[#711610]/20 bg-white p-5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-[#711610]">
+        {header.kicker}
+      </p>
+      <h1 className="mt-1 text-2xl font-semibold text-[#711610] md:text-3xl">
+        {header.title}
+      </h1>
+      <p className="mt-2 text-sm text-[#711610]">{header.copy}</p>
+    </header>
+  );
+}
+
+function StepFooter({
+  backHref,
+  backLabel = "Regresar",
+  nextLabel,
+  nextDisabled,
+  onBack,
+  onNext,
+}: {
+  backHref?: string;
+  backLabel?: string;
+  nextLabel: string;
+  nextDisabled?: boolean;
+  onBack?: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <footer className="flex flex-wrap items-center justify-between gap-3">
+      {backHref ? (
+        <Link
+          href={backHref}
+          className="rounded-md border border-[#711610] px-5 py-2 text-sm font-medium text-[#711610] hover:bg-[#711610]/10"
+        >
+          {backLabel}
+        </Link>
+      ) : (
+        <button
+          type="button"
+          onClick={onBack}
+          className="rounded-md border border-[#711610] px-5 py-2 text-sm font-medium text-[#711610] hover:bg-[#711610]/10"
+        >
+          {backLabel}
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={onNext}
+        disabled={nextDisabled}
+        className="rounded-md bg-[#711610] px-5 py-2 text-sm font-medium text-white hover:bg-[#5e120d] disabled:cursor-not-allowed disabled:bg-[#9A999D]"
+      >
+        {nextLabel}
+      </button>
+    </footer>
+  );
+}
+
+function VacancyCard({
+  title,
+  description,
+  imageUrl,
+  selected,
+  onClick,
+}: {
+  title: string;
+  description: string;
+  imageUrl: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`overflow-hidden rounded-lg border text-left transition hover:shadow-md ${
+        selected
+          ? "border-[#711610] bg-[#E6D9AA]/40"
+          : "border-[#9A999D]/30 bg-white hover:border-[#711610]/50"
+      }`}
+    >
+      <div
+        className="h-36 bg-cover bg-center"
+        style={{
+          backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.52)), url(${imageUrl})`,
+        }}
+      />
+      <div className="p-5">
+        <h2 className="text-lg font-semibold text-[#711610]">{title}</h2>
+        <p className="mt-2 text-sm leading-6 text-[#711610]">{description}</p>
+      </div>
+    </button>
+  );
+}
+
+function ModalityCard({
+  modality,
+  selected,
+  onClick,
+}: {
+  modality: AdmissionModality;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`overflow-hidden rounded-lg border bg-white text-left transition hover:shadow-md ${
+        selected
+          ? "border-[#711610] ring-2 ring-[#711610]/30"
+          : "border-[#9A999D]/30 hover:border-[#711610]/50"
+      }`}
+    >
+      <div
+        className="h-36 bg-cover bg-center"
+        style={{
+          backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.55)), url(${modality.image_url ?? fallbackImage})`,
+        }}
+      />
+      <div className="p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#9A999D]">
+          {modality.start_studies ? "Iniciar estudios" : "Continuar estudios"}
+        </p>
+        <h3 className="mt-1 text-base font-semibold text-[#711610]">
+          {modality.name}
+        </h3>
+        <p className="mt-2 line-clamp-3 text-sm leading-5 text-[#711610]">
+          {modality.description}
+        </p>
+      </div>
+    </button>
   );
 }

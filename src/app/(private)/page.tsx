@@ -33,7 +33,7 @@ export default function HomePage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
-                  href='/personal-data'
+                  href='/login-registro'
                   className="cursor-pointer bg-[#711610] text-white px-8 py-4 rounded-xl font-semibold hover:bg-[#711610]/90 transition shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
                 Iniciar Inscripción
               </Link>

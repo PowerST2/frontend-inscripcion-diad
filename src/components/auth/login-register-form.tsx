@@ -1,0 +1,189 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { FormEvent, useState } from "react";
+import { ApiError } from "@/lib/api";
+import {
+  AUTH_TOKEN_KEY,
+  AUTH_USER_KEY,
+  AuthResponse,
+  login,
+  register,
+} from "@/lib/auth";
+
+type AuthMode = "login" | "register";
+
+export default function LoginRegisterForm() {
+  const router = useRouter();
+  const [mode, setMode] = useState<AuthMode>("login");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isRegister = mode === "register";
+
+  const persistSession = (response: AuthResponse) => {
+    localStorage.setItem(AUTH_TOKEN_KEY, response.token);
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(response.user));
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    setFieldErrors({});
+    setIsSubmitting(true);
+
+    try {
+      const response = isRegister
+        ? await register({
+            name,
+            email,
+            password,
+            password_confirmation: passwordConfirmation,
+          })
+        : await login({ email, password });
+
+      persistSession(response);
+
+      router.push("/my-profile");
+
+      router.refresh();
+    } catch (caughtError) {
+      if (caughtError instanceof ApiError) {
+        setError(caughtError.message);
+        setFieldErrors(caughtError.errors ?? {});
+      } else {
+        setError("No se pudo conectar con el servidor de admision.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const firstFieldError = (field: string) => fieldErrors[field]?.[0] ?? null;
+
+  return (
+    <section className="mx-auto flex w-full max-w-4xl flex-1 items-center px-4 py-10 md:px-6">
+      <div className="grid w-full overflow-hidden rounded-lg border border-[#9A999D]/30 bg-white shadow-sm md:grid-cols-[0.9fr_1.1fr]">
+        <aside className="bg-[#711610] p-6 text-white md:p-8">
+          <p className="text-sm font-semibold uppercase tracking-wide text-[#E6D9AA]">
+            Concurso de admision 2026-I
+          </p>
+          <h1 className="mt-4 text-2xl font-semibold md:text-3xl">
+            Acceso al portal del postulante
+          </h1>
+          <p className="mt-4 text-sm leading-6 text-white/80">
+            Inicia sesion con tu correo registrado o crea una cuenta para continuar tu proceso de
+            inscripcion.
+          </p>
+        </aside>
+
+        <div className="p-6 md:p-8">
+          <div className="mb-6 grid grid-cols-2 rounded-md border border-[#711610]/20 bg-[#E6D9AA]/25 p-1">
+            <button
+              type="button"
+              onClick={() => setMode("login")}
+              className={`rounded px-3 py-2 text-sm font-semibold ${
+                !isRegister ? "bg-white text-[#711610] shadow-sm" : "text-[#711610]/70"
+              }`}
+            >
+              Iniciar sesion
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("register")}
+              className={`rounded px-3 py-2 text-sm font-semibold ${
+                isRegister ? "bg-white text-[#711610] shadow-sm" : "text-[#711610]/70"
+              }`}
+            >
+              Registrarme
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {isRegister && (
+              <label className="block text-sm">
+                <span className="mb-1 block font-medium text-[#711610]">Nombres y apellidos</span>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  className="w-full rounded-md border border-[#9A999D]/50 px-3 py-2 text-[#171717] outline-none focus:border-[#711610]"
+                  autoComplete="name"
+                  required
+                />
+                {firstFieldError("name") && (
+                  <span className="mt-1 block text-xs text-red-700">{firstFieldError("name")}</span>
+                )}
+              </label>
+            )}
+
+            <label className="block text-sm">
+              <span className="mb-1 block font-medium text-[#711610]">Correo electronico</span>
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className="w-full rounded-md border border-[#9A999D]/50 px-3 py-2 text-[#171717] outline-none focus:border-[#711610]"
+                autoComplete="email"
+                required
+              />
+              {firstFieldError("email") && (
+                <span className="mt-1 block text-xs text-red-700">{firstFieldError("email")}</span>
+              )}
+            </label>
+
+            <label className="block text-sm">
+              <span className="mb-1 block font-medium text-[#711610]">Contrasena</span>
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className="w-full rounded-md border border-[#9A999D]/50 px-3 py-2 text-[#171717] outline-none focus:border-[#711610]"
+                autoComplete={isRegister ? "new-password" : "current-password"}
+                required
+              />
+              {firstFieldError("password") && (
+                <span className="mt-1 block text-xs text-red-700">{firstFieldError("password")}</span>
+              )}
+            </label>
+
+            {isRegister && (
+              <label className="block text-sm">
+                <span className="mb-1 block font-medium text-[#711610]">
+                  Confirmar contrasena
+                </span>
+                <input
+                  type="password"
+                  value={passwordConfirmation}
+                  onChange={(event) => setPasswordConfirmation(event.target.value)}
+                  className="w-full rounded-md border border-[#9A999D]/50 px-3 py-2 text-[#171717] outline-none focus:border-[#711610]"
+                  autoComplete="new-password"
+                  required
+                />
+              </label>
+            )}
+
+            {error && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full rounded-md bg-[#711610] px-5 py-3 text-sm font-semibold text-white hover:bg-[#5e120d] disabled:cursor-not-allowed disabled:bg-[#9A999D]"
+            >
+              {isSubmitting ? "Procesando..." : isRegister ? "Crear cuenta" : "Ingresar"}
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+  );
+}

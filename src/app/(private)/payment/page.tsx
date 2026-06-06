@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import BaseStepPage from "@/components/base-step-page";
+import PaymentStatus from "@/components/payments/payment-status";
 
 export const metadata: Metadata = {
   title: "payment",
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function PaymentPage() {
-  return <BaseStepPage title="payment" prevHref="/sworn-affidavit" nextHref="/registration-form" />;
+  return <PaymentStatus />;
 }

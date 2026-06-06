@@ -22,15 +22,75 @@
   --color-beige-arena: var(--beige-arena);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: system-ui, -apple-system, sans-serif;
+}
+
+.form-input {
+  width: 100%;
+  border-radius: 0.375rem;
+  border: 1px solid color-mix(in srgb, var(--gris) 50%, transparent);
+  padding: 0.5rem 0.75rem;
+  color: #171717;
+  outline: none;
+}
+
+.form-input:focus {
+  border-color: var(--granate);
+}
+
+.form-input:disabled {
+  cursor: not-allowed;
+  background: color-mix(in srgb, var(--gris) 12%, white);
+  color: var(--gris);
+}
+
+html.theme-dark {
+  --background: #0f172a;
+  --foreground: #e5e7eb;
+  color-scheme: dark;
+}
+
+html.theme-dark body,
+html.theme-dark .app-shell {
+  background: #0f172a !important;
+  color: #e5e7eb !important;
+}
+
+html.theme-dark .app-header,
+html.theme-dark .app-footer,
+html.theme-dark .bg-white,
+html.theme-dark .bg-white\/70,
+html.theme-dark .bg-white\/90 {
+  background: #111827 !important;
+  color: #e5e7eb !important;
+}
+
+html.theme-dark [class*="text-[#711610]"] {
+  color: #f3d6a3 !important;
+}
+
+html.theme-dark [class*="border-[#711610]"] {
+  border-color: #c99b65 !important;
+}
+
+html.theme-dark [class*="bg-[#E6D9AA]"] {
+  background: rgba(120, 87, 48, 0.25) !important;
+}
+
+html.theme-dark .form-input {
+  background: #0b1220;
+  border-color: #475569;
+  color: #f8fafc;
+}
+
+html.theme-dark .form-input:disabled {
+  background: #1f2937;
+  color: #94a3b8;
+}
+
+html.theme-dark .form-input::placeholder {
+  color: #94a3b8;
 }

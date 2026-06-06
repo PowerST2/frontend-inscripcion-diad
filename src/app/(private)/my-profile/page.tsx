@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import BaseStepPage from "@/components/base-step-page";
+import ProfileDashboard from "@/components/profile/profile-dashboard";
 
 export const metadata: Metadata = {
   title: "my-profile",
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function MyProfilePage() {
-  return <BaseStepPage title="my-profile" prevHref="/" />;
+  return <ProfileDashboard />;
 }
