@@ -15,6 +15,7 @@ import {
   getCountries,
   getDepartments,
   getDistricts,
+  getDocumentTypes,
   getGenders,
   getProvinces,
   getUbigeo,
@@ -25,9 +26,10 @@ import {
 
 type InternalStep = 1 | 2 | 3;
 type UbigeoGroup = "residence" | "birth";
+type DocumentType = "DNI" | "CE" | "PASSPORT";
 
 type FormState = {
-  documentType: "DNI" | "PASSPORT";
+  documentType: DocumentType;
   documentNumber: string;
   fatherLastName: string;
   motherLastName: string;
@@ -72,6 +74,47 @@ const initialFormState: FormState = {
   disabilityDescription: "",
 };
 
+const DOCUMENT_RULES: Record<DocumentType, { label: string; pattern: RegExp; message: string; maxLength: number }> = {
+  DNI: {
+    label: "DNI",
+    pattern: /^\d{8}$/,
+    message: "El DNI debe tener exactamente 8 digitos numericos.",
+    maxLength: 8,
+  },
+  CE: {
+    label: "Carne de Extranjeria",
+    pattern: /^\d{9}$/,
+    message: "El Carne de Extranjeria debe tener exactamente 9 digitos numericos.",
+    maxLength: 9,
+  },
+  PASSPORT: {
+    label: "Pasaporte",
+    pattern: /^[A-Za-z0-9]{8,12}$/,
+    message: "El pasaporte debe tener entre 8 y 12 caracteres alfanumericos.",
+    maxLength: 12,
+  },
+};
+
+const PHONE_PATTERN = /^\d{9}$/;
+
+function isSupportedDocumentType(code?: string): code is DocumentType {
+  return code === "DNI" || code === "CE" || code === "PASSPORT";
+}
+
+function normalizeDocumentNumber(type: DocumentType, value: string) {
+  const rule = DOCUMENT_RULES[type];
+
+  if (type === "PASSPORT") {
+    return value.replace(/[^A-Za-z0-9]/g, "").slice(0, rule.maxLength);
+  }
+
+  return value.replace(/\D/g, "").slice(0, rule.maxLength);
+}
+
+function normalizePhone(value: string) {
+  return value.replace(/\D/g, "").slice(0, 9);
+}
+
 function isPeruCountry(country?: CatalogOption): boolean {
   if (!country) {
     return false;
@@ -91,6 +134,7 @@ export default function PersonalDataWizard() {
   const [step, setStep] = useState<InternalStep>(1);
   const [token, setToken] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(initialFormState);
+  const [documentTypes, setDocumentTypes] = useState<Array<CatalogOption & { code: DocumentType }>>([]);
   const [genders, setGenders] = useState<CatalogOption[]>([]);
   const [countries, setCountries] = useState<CatalogOption[]>([]);
   const [departments, setDepartments] = useState<UbigeoDepartment[]>([]);
@@ -121,6 +165,7 @@ export default function PersonalDataWizard() {
     () => countries.find((country) => String(country.id) === form.countryBirthId),
     [countries, form.countryBirthId]
   );
+  const documentRule = DOCUMENT_RULES[form.documentType];
   const shouldShowResidenceUbigeo = isPeruCountry(residenceCountry);
   const shouldShowBirthUbigeo = isPeruCountry(birthCountry);
 
@@ -157,22 +202,35 @@ export default function PersonalDataWizard() {
     }
 
     Promise.all([
+      getDocumentTypes(storedToken),
       getGenders(),
       getCountries(storedToken),
       getDepartments(),
       getApplicantProgress(storedToken),
     ])
-      .then(async ([genderResponse, countryResponse, departmentResponse, progressResponse]) => {
+      .then(async ([documentTypeResponse, genderResponse, countryResponse, departmentResponse, progressResponse]) => {
+        const availableDocumentTypes = documentTypeResponse.data.filter(
+          (type): type is CatalogOption & { code: DocumentType } => isSupportedDocumentType(type.code)
+        );
+        const applicant = progressResponse.applicant;
+        const applicantDocumentType = applicant?.document_type?.code;
+        const nextDocumentType = availableDocumentTypes.some((type) => type.code === applicantDocumentType)
+          ? (applicantDocumentType as DocumentType)
+          : availableDocumentTypes[0]?.code ?? "DNI";
+
+        setDocumentTypes(availableDocumentTypes);
         setGenders(genderResponse.data);
         setCountries(countryResponse.data);
         setDepartments(departmentResponse.data);
 
-        const applicant = progressResponse.applicant;
         setIdentityDocumentComplete(Boolean(progressResponse.progress.identity_document_complete));
 
-        if (applicant) {
+        if (!applicant) {
+          setForm((prev) => ({ ...prev, documentType: nextDocumentType, documentNumber: "" }));
+        } else {
           setForm((prev) => ({
             ...prev,
+            documentType: nextDocumentType,
             documentNumber: applicant.document_number ?? "",
             fatherLastName: applicant.paternal_surname ?? "",
             motherLastName: applicant.maternal_surname ?? "",
@@ -251,6 +309,33 @@ export default function PersonalDataWizard() {
 
   const firstFieldError = (field: string) => fieldErrors[field]?.[0] ?? null;
 
+  const validatePersonalData = () => {
+    const nextErrors: Record<string, string[]> = {};
+    const documentRule = DOCUMENT_RULES[form.documentType];
+    const documentNumber = form.documentNumber.trim();
+    const applicantPhone = form.applicantPhone.trim();
+    const guardianPhone = form.guardianPhone.trim();
+    const otherPhone = form.otherPhone.trim();
+
+    if (!documentRule.pattern.test(documentNumber)) {
+      nextErrors.documentNumber = [documentRule.message];
+    }
+
+    if (!PHONE_PATTERN.test(applicantPhone)) {
+      nextErrors.applicantPhone = ["El celular del postulante debe tener exactamente 9 digitos."];
+    }
+
+    if (guardianPhone && !PHONE_PATTERN.test(guardianPhone)) {
+      nextErrors.guardianPhone = ["El telefono de apoderado debe tener exactamente 9 digitos."];
+    }
+
+    if (!PHONE_PATTERN.test(otherPhone)) {
+      nextErrors.otherPhone = ["El telefono alterno debe tener exactamente 9 digitos."];
+    }
+
+    return nextErrors;
+  };
+
   const selectDepartment = async (group: UbigeoGroup, code: string) => {
     if (group === "residence") {
       setResidenceDepartment(code);
@@ -313,6 +398,30 @@ export default function PersonalDataWizard() {
       updateField(field, event.target.value as never);
     };
 
+  const handleDocumentTypeChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    setForm((prev) => ({
+      ...prev,
+      documentType: event.target.value as DocumentType,
+      documentNumber: "",
+    }));
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next.documentType;
+      delete next.documentNumber;
+      return next;
+    });
+  };
+
+  const handleDocumentNumberChange = (event: ChangeEvent<HTMLInputElement>) => {
+    updateField("documentNumber", normalizeDocumentNumber(form.documentType, event.target.value));
+  };
+
+  const handlePhoneInput =
+    (field: "applicantPhone" | "guardianPhone" | "otherPhone") =>
+    (event: ChangeEvent<HTMLInputElement>) => {
+      updateField(field, normalizePhone(event.target.value));
+    };
+
   const handleCountryChange =
     (field: "countryResidenceId" | "countryBirthId", group: UbigeoGroup) =>
     (event: ChangeEvent<HTMLSelectElement>) => {
@@ -369,6 +478,14 @@ export default function PersonalDataWizard() {
     setError(null);
     setMessage(null);
     setFieldErrors({});
+
+    const localErrors = validatePersonalData();
+    if (Object.keys(localErrors).length > 0) {
+      setFieldErrors(localErrors);
+      setIsSubmitting(false);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -484,12 +601,15 @@ export default function PersonalDataWizard() {
             <Field label="Tipo de documento" error={firstFieldError("documentType")}>
               <select
                 value={form.documentType}
-                onChange={(event) => updateField("documentType", event.target.value as "DNI" | "PASSPORT")}
+                onChange={handleDocumentTypeChange}
                 className="form-input"
                 required
               >
-                <option value="DNI">DNI</option>
-                <option value="PASSPORT">Pasaporte</option>
+                {documentTypes.map((type) => (
+                  <option key={type.code} value={type.code}>
+                    {DOCUMENT_RULES[type.code].label}
+                  </option>
+                ))}
               </select>
             </Field>
 
@@ -497,9 +617,17 @@ export default function PersonalDataWizard() {
               <input
                 type="text"
                 value={form.documentNumber}
-                onChange={handleInput("documentNumber")}
+                onChange={handleDocumentNumberChange}
                 className="form-input"
-                maxLength={20}
+                inputMode={form.documentType === "PASSPORT" ? "text" : "numeric"}
+                maxLength={documentRule.maxLength}
+                placeholder={
+                  form.documentType === "DNI"
+                    ? "12345678"
+                    : form.documentType === "CE"
+                      ? "123456789"
+                      : "PA123456"
+                }
                 required
               />
             </Field>
@@ -573,9 +701,11 @@ export default function PersonalDataWizard() {
               <input
                 type="tel"
                 value={form.applicantPhone}
-                onChange={handleInput("applicantPhone")}
+                onChange={handlePhoneInput("applicantPhone")}
                 className="form-input"
-                maxLength={30}
+                inputMode="numeric"
+                maxLength={9}
+                pattern="[0-9]{9}"
                 required
               />
             </Field>
@@ -584,9 +714,11 @@ export default function PersonalDataWizard() {
               <input
                 type="tel"
                 value={form.guardianPhone}
-                onChange={handleInput("guardianPhone")}
+                onChange={handlePhoneInput("guardianPhone")}
                 className="form-input"
-                maxLength={30}
+                inputMode="numeric"
+                maxLength={9}
+                pattern="[0-9]{9}"
               />
             </Field>
 
@@ -594,9 +726,11 @@ export default function PersonalDataWizard() {
               <input
                 type="tel"
                 value={form.otherPhone}
-                onChange={handleInput("otherPhone")}
+                onChange={handlePhoneInput("otherPhone")}
                 className="form-input"
-                maxLength={30}
+                inputMode="numeric"
+                maxLength={9}
+                pattern="[0-9]{9}"
                 required
               />
             </Field>
@@ -791,7 +925,7 @@ export default function PersonalDataWizard() {
           className="rounded-lg border border-[#9A999D]/30 bg-white p-5"
         >
           <div className="rounded-lg border border-dashed border-[#9A999D] bg-[#E6D9AA]/20 p-6 text-center text-sm text-[#711610]">
-            <p className="font-medium">Cargar DNI o pasaporte del postulante</p>
+            <p className="font-medium">Cargar DNI, carne de extranjeria o pasaporte del postulante</p>
             <p className="mt-1 text-[#9A999D]">Formatos permitidos: JPG, JPEG, PNG o PDF. Maximo 5 MB.</p>
             <input
               type="file"
@@ -821,7 +955,7 @@ export default function PersonalDataWizard() {
               </div>
             ) : (
               <p className="mx-auto mt-5 max-w-xl rounded-md bg-[#E6D9AA]/30 px-3 py-2 text-sm text-[#711610]">
-                Seleccione su DNI o pasaporte para habilitar el boton de continuar.
+                Seleccione su documento de identidad para habilitar el boton de continuar.
               </p>
             )}
           </div>

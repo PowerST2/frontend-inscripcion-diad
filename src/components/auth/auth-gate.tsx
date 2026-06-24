@@ -97,7 +97,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     router.replace("/login-registro");
   };
 
-  if (!ready || (!token && !isPublicPath)) {
+  if (!isPublicPath && (!ready || !token)) {
     return (
       <div className="app-shell flex min-h-screen items-center justify-center bg-[#E6D9AA]/20 text-sm font-medium text-[#711610]">
         Cargando...

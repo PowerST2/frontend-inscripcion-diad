@@ -38,7 +38,7 @@ export type UbigeoDetail = {
 };
 
 export type ApplicantPersonalDataPayload = {
-  documentType: "DNI" | "PASSPORT";
+  documentType: "DNI" | "CE" | "PASSPORT";
   documentNumber: string;
   fatherLastName: string;
   motherLastName: string;
@@ -65,6 +65,7 @@ export type ApplicantProgress = {
   progress: Record<string, boolean>;
   applicant: null | {
     document_number?: string | null;
+    document_type?: { id: number; code: string; name: string } | null;
     paternal_surname?: string | null;
     maternal_surname?: string | null;
     names?: string | null;
@@ -309,6 +310,12 @@ export function acceptPreinscriptionConsent(token: string) {
 
 export function getCountries(token: string) {
   return apiRequest<{ status: "success"; data: CatalogOption[] }>("/applicants/countries", {
+    token,
+  });
+}
+
+export function getDocumentTypes(token: string) {
+  return apiRequest<{ status: "success"; data: CatalogOption[] }>("/applicants/document-types", {
     token,
   });
 }

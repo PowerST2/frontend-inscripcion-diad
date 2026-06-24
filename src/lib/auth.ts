@@ -35,13 +35,30 @@ export type RegisterPayload = LoginPayload & {
 };
 
 export function getStoredAuthToken() {
-  return sessionStorage.getItem(AUTH_TOKEN_KEY);
+  const sessionToken = sessionStorage.getItem(AUTH_TOKEN_KEY);
+  if (sessionToken) {
+    return sessionToken;
+  }
+
+  const legacyToken = localStorage.getItem(AUTH_TOKEN_KEY);
+  if (legacyToken) {
+    sessionStorage.setItem(AUTH_TOKEN_KEY, legacyToken);
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+  }
+
+  return legacyToken;
 }
 
 export function getStoredAuthUser() {
-  const storedUser = sessionStorage.getItem(AUTH_USER_KEY);
+  const storedUser = sessionStorage.getItem(AUTH_USER_KEY) ?? localStorage.getItem(AUTH_USER_KEY);
   try {
-    return storedUser ? (JSON.parse(storedUser) as AuthUser) : null;
+    const user = storedUser ? (JSON.parse(storedUser) as AuthUser) : null;
+    if (user) {
+      sessionStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+      localStorage.removeItem(AUTH_USER_KEY);
+    }
+
+    return user;
   } catch {
     clearAuthSession();
     return null;
