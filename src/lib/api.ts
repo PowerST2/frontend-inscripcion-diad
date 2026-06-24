@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE_URL = "http://backend-inscripcion.local/api";
+const DEFAULT_API_BASE_URL = "http://127.0.0.1:8000/api";
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? DEFAULT_API_BASE_URL;
@@ -34,7 +34,15 @@ export async function apiRequest<T>(
   });
 
   const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
+  let data: { message?: string; errors?: Record<string, string[]> } | null = null;
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new ApiError("El servidor devolvio una respuesta invalida", response.status);
+    }
+  }
 
   if (!response.ok) {
     throw new ApiError(

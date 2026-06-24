@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { FaCheckCircle, FaFileAlt, FaUpload } from "react-icons/fa";
 import { ApiError } from "@/lib/api";
-import { AUTH_TOKEN_KEY } from "@/lib/auth";
+import { getStoredAuthToken } from "@/lib/auth";
 import {
   ApplicantUploadedDocument,
   ModalityRequiredDocument,
@@ -59,7 +59,7 @@ export default function DocumentsUploadForm() {
     requiredDocuments.length > 0 && completedCount === requiredDocuments.length;
 
   useEffect(() => {
-    const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
+    const storedToken = getStoredAuthToken();
     if (!storedToken) {
       router.replace("/login-registro");
       return;

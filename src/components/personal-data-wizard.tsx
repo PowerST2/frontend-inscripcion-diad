@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { ApiError } from "@/lib/api";
-import { AUTH_TOKEN_KEY, AUTH_USER_KEY, AuthUser } from "@/lib/auth";
+import { getStoredAuthToken, getStoredAuthUser } from "@/lib/auth";
 import {
   ApplicantPersonalDataPayload,
   CatalogOption,
@@ -137,8 +137,8 @@ export default function PersonalDataWizard() {
   }, [photo]);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
-    const storedUser = localStorage.getItem(AUTH_USER_KEY);
+    const storedToken = getStoredAuthToken();
+    const storedUser = getStoredAuthUser();
 
     if (!storedToken) {
       router.replace("/login-registro");
@@ -148,7 +148,7 @@ export default function PersonalDataWizard() {
     setToken(storedToken);
 
     if (storedUser) {
-      const user = JSON.parse(storedUser) as AuthUser;
+      const user = storedUser;
       setForm((prev) => ({
         ...prev,
         email: user.email,

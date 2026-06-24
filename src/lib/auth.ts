@@ -34,6 +34,34 @@ export type RegisterPayload = LoginPayload & {
   password_confirmation: string;
 };
 
+export function getStoredAuthToken() {
+  return sessionStorage.getItem(AUTH_TOKEN_KEY);
+}
+
+export function getStoredAuthUser() {
+  const storedUser = sessionStorage.getItem(AUTH_USER_KEY);
+  try {
+    return storedUser ? (JSON.parse(storedUser) as AuthUser) : null;
+  } catch {
+    clearAuthSession();
+    return null;
+  }
+}
+
+export function persistAuthSession(response: AuthResponse) {
+  sessionStorage.setItem(AUTH_TOKEN_KEY, response.token);
+  sessionStorage.setItem(AUTH_USER_KEY, JSON.stringify(response.user));
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  localStorage.removeItem(AUTH_USER_KEY);
+}
+
+export function clearAuthSession() {
+  sessionStorage.removeItem(AUTH_TOKEN_KEY);
+  sessionStorage.removeItem(AUTH_USER_KEY);
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  localStorage.removeItem(AUTH_USER_KEY);
+}
+
 export function login(payload: LoginPayload) {
   return apiRequest<AuthResponse>("/auth/login", {
     method: "POST",

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { FaCheckCircle, FaClock, FaDownload, FaExclamationTriangle, FaFileUpload } from "react-icons/fa";
 import { ApiError } from "@/lib/api";
-import { AUTH_TOKEN_KEY } from "@/lib/auth";
+import { getStoredAuthToken } from "@/lib/auth";
 import {
   SwornDeclarationSubmission,
   SwornDeclarationTemplate,
@@ -25,7 +25,7 @@ export default function SwornDeclarationForm() {
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
+    const storedToken = getStoredAuthToken();
     if (!storedToken) {
       router.replace("/login-registro");
       return;

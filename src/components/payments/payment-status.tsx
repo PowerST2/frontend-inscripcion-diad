@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ApiError } from "@/lib/api";
-import { AUTH_TOKEN_KEY } from "@/lib/auth";
+import { getStoredAuthToken } from "@/lib/auth";
 import { ApplicantPayment, getApplicantPayments } from "@/lib/applicant";
 
 export default function PaymentStatus() {
@@ -14,7 +14,7 @@ export default function PaymentStatus() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    const token = getStoredAuthToken();
     if (!token) {
       router.replace("/login-registro");
       return;

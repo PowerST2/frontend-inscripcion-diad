@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { FaCamera, FaCheck, FaClock, FaExclamationTriangle, FaFileAlt, FaIdCard, FaUser } from "react-icons/fa";
 import { ApiError } from "@/lib/api";
-import { AUTH_TOKEN_KEY } from "@/lib/auth";
+import { getStoredAuthToken } from "@/lib/auth";
 import { ApplicantProgress, getApplicantProgress } from "@/lib/applicant";
 import { getNextFlowStep } from "@/lib/admission-flow";
 
@@ -33,7 +33,7 @@ export default function ProfileDashboard() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    const token = getStoredAuthToken();
     if (!token) {
       router.replace("/login-registro");
       return;

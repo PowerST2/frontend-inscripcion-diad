@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { Faculty } from "@/components/modality/faculties-data";
@@ -139,7 +140,13 @@ export default function FacultySpecialtiesForm({
 
         {selectedFaculty && (
           <article className="overflow-hidden rounded-lg border border-[#9A999D]/30">
-            <img src={selectedFaculty.imageUrl} alt={selectedFaculty.name} className="h-48 w-full object-cover" />
+            <Image
+              src={selectedFaculty.imageUrl}
+              alt={selectedFaculty.name}
+              width={1200}
+              height={480}
+              className="h-48 w-full object-cover"
+            />
             <div className="space-y-2 p-4">
               <p className="text-xs font-semibold uppercase text-[#711610]">Facultad seleccionada</p>
               <h2 className="text-lg font-semibold text-[#711610]">{selectedFaculty.name}</h2>

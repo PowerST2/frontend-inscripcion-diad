@@ -4,12 +4,11 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { ApiError } from "@/lib/api";
 import {
-  AUTH_TOKEN_KEY,
-  AUTH_USER_KEY,
-  AuthResponse,
   login,
+  persistAuthSession,
   register,
 } from "@/lib/auth";
+import { ADMISSION_PROCESS_LABEL } from "@/lib/site";
 
 type AuthMode = "login" | "register";
 
@@ -25,11 +24,6 @@ export default function LoginRegisterForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isRegister = mode === "register";
-
-  const persistSession = (response: AuthResponse) => {
-    localStorage.setItem(AUTH_TOKEN_KEY, response.token);
-    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(response.user));
-  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -47,7 +41,7 @@ export default function LoginRegisterForm() {
           })
         : await login({ email, password });
 
-      persistSession(response);
+      persistAuthSession(response);
 
       router.push("/my-profile");
 
@@ -71,7 +65,7 @@ export default function LoginRegisterForm() {
       <div className="grid w-full overflow-hidden rounded-lg border border-[#9A999D]/30 bg-white shadow-sm md:grid-cols-[0.9fr_1.1fr]">
         <aside className="bg-[#711610] p-6 text-white md:p-8">
           <p className="text-sm font-semibold uppercase tracking-wide text-[#E6D9AA]">
-            Concurso de admision 2026-I
+            {ADMISSION_PROCESS_LABEL}
           </p>
           <h1 className="mt-4 text-2xl font-semibold md:text-3xl">
             Acceso al portal del postulante

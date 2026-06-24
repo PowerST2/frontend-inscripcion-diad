@@ -5,9 +5,10 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import { FiBell } from "react-icons/fi";
-import { AUTH_TOKEN_KEY, AUTH_USER_KEY, AuthUser, logout } from "@/lib/auth";
+import { AuthUser, clearAuthSession, getStoredAuthToken, getStoredAuthUser, logout } from "@/lib/auth";
 import { ApplicantProgress, getApplicantProgress } from "@/lib/applicant";
 import { canAccessFlowPath, getNextFlowStep } from "@/lib/admission-flow";
+import { HEADER_PROCESS_LABEL } from "@/lib/site";
 
 const PUBLIC_PATHS = new Set(["/", "/login-registro"]);
 const THEME_STORAGE_KEY = "admision_theme";
@@ -25,13 +26,13 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const isPublicPath = useMemo(() => PUBLIC_PATHS.has(pathname), [pathname]);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
-    const storedUser = localStorage.getItem(AUTH_USER_KEY);
+    const storedToken = getStoredAuthToken();
+    const storedUser = getStoredAuthUser();
     const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
     const shouldUseDarkMode = storedTheme === "dark";
 
     setToken(storedToken);
-    setUser(storedUser ? JSON.parse(storedUser) : null);
+    setUser(storedUser);
     setIsDarkMode(shouldUseDarkMode);
     document.documentElement.classList.toggle("theme-dark", shouldUseDarkMode);
     setReady(true);
@@ -90,8 +91,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       }
     }
 
-    localStorage.removeItem(AUTH_TOKEN_KEY);
-    localStorage.removeItem(AUTH_USER_KEY);
+    clearAuthSession();
     setToken(null);
     setUser(null);
     router.replace("/login-registro");
@@ -118,7 +118,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
               className="h-11 w-11 object-contain"
               priority
             />
-            <p className="text-base font-semibold md:text-lg">Inscripciones 2026-1</p>
+            <p className="text-base font-semibold md:text-lg">{HEADER_PROCESS_LABEL}</p>
           </Link>
 
           <div className="flex items-center gap-3">

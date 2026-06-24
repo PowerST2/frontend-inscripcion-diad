@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
-import { AUTH_TOKEN_KEY } from "@/lib/auth";
+import { getStoredAuthToken } from "@/lib/auth";
 import { ApplicantProgress, confirmApplicantData, getApplicantProgress } from "@/lib/applicant";
 
 export default function ConfirmationSummary() {
@@ -17,7 +17,7 @@ export default function ConfirmationSummary() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
+    const storedToken = getStoredAuthToken();
     if (!storedToken) {
       router.replace("/login-registro");
       return;

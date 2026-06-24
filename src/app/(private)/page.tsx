@@ -1,6 +1,7 @@
 import type {Metadata} from "next";
 import React from "react";
 import Link from "next/link";
+import { ADMISSION_PROCESS_LABEL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Portal de Inscripciones DIAD - UNI",
@@ -14,7 +15,7 @@ export default function HomePage() {
           <div className="text-center max-w-3xl mx-auto mb-16">
             <div
                 className="inline-block bg-[#E6D9AA] text-[#711610] px-4 py-2 rounded-full text-sm font-semibold mb-6">
-              CONCURSO DE ADMISIÓN 2026-I
+              {ADMISSION_PROCESS_LABEL.toUpperCase()}
             </div>
             <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
               Tu camino hacia la{" "}
@@ -37,10 +38,11 @@ export default function HomePage() {
                   className="cursor-pointer bg-[#711610] text-white px-8 py-4 rounded-xl font-semibold hover:bg-[#711610]/90 transition shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
                 Iniciar Inscripción
               </Link>
-              <button
+              <Link
+                  href="#servicios"
                   className="cursor-pointer bg-white text-[#711610] border-2 border-[#711610] px-8 py-4 rounded-xl font-semibold hover:bg-[#711610]/5 transition">
-                Ver Guía
-              </button>
+                Ver guía
+              </Link>
             </div>
           </div>
 
@@ -63,7 +65,7 @@ export default function HomePage() {
                   </h3>
                 </div>
                 <p className="text-gray-700 mb-4">
-                  Las solicitudes de semibeca para el Concurso 2026-I <span
+                  Las solicitudes de semibeca para el {ADMISSION_PROCESS_LABEL} <span
                     className="font-bold text-[#711610]">están abiertas</span>.
                   Si calificas académicamente, puedes solicitar apoyo económico.
                 </p>
@@ -77,10 +79,11 @@ export default function HomePage() {
                 </div>
               </div>
               <div className="flex-shrink-0">
-                <button
+                <Link
+                    href="/login-registro"
                     className="bg-[#711610] text-white px-8 py-4 rounded-xl font-semibold hover:bg-[#711610]/90 transition shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 whitespace-nowrap">
                   Solicitar Semibeca
-                </button>
+                </Link>
               </div>
             </div>
           </div>
@@ -266,15 +269,12 @@ export default function HomePage() {
             <p className="text-lg mb-8 text-white/90 max-w-2xl mx-auto">
               Nuestro equipo está disponible para ayudarte en cada paso del proceso
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button
+            <div className="flex justify-center">
+              <Link
+                  href="/login-registro"
                   className="bg-white text-[#711610] px-8 py-4 rounded-xl font-semibold hover:bg-gray-100 transition shadow-lg">
-                WhatsApp Soporte
-              </button>
-              <button
-                  className="bg-transparent border-2 border-white text-white px-8 py-4 rounded-xl font-semibold hover:bg-white/10 transition">
-                Ver preguntas frecuentes
-              </button>
+                Ingresar al portal
+              </Link>
             </div>
           </div>
         </section>

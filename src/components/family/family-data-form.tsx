@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ApiError } from "@/lib/api";
-import { AUTH_TOKEN_KEY } from "@/lib/auth";
+import { getStoredAuthToken } from "@/lib/auth";
 import {
   FamilyDataPayload,
   FamilyMember,
@@ -82,7 +82,7 @@ export default function FamilyDataForm() {
   }, [father, mother, guardian]);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
+    const storedToken = getStoredAuthToken();
     if (!storedToken) {
       router.replace("/login-registro");
       return;
