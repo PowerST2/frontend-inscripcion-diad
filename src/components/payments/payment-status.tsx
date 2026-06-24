@@ -100,10 +100,27 @@ export default function PaymentStatus() {
                   <div>
                     <p className="font-semibold text-[#711610]">{payment.description}</p>
                     <p className="text-xs text-[#9A999D]">Código: {payment.tariff_code ?? "-"}</p>
+                    {Number(payment.discount_amount ?? 0) > 0 && (
+                      <p className="mt-1 text-xs font-semibold text-green-700">
+                        Descuento {payment.discount_type === "total" ? "total" : "parcial"}: S/ {Number(payment.discount_amount).toFixed(2)}
+                        {payment.discount_reason ? ` - ${payment.discount_reason}` : ""}
+                      </p>
+                    )}
                   </div>
-                  <p className="font-semibold text-[#711610]">S/ {Number(payment.amount).toFixed(2)}</p>
+                  <div className="text-right">
+                    {payment.original_amount && Number(payment.discount_amount ?? 0) > 0 && (
+                      <p className="text-xs text-[#9A999D] line-through">
+                        S/ {Number(payment.original_amount).toFixed(2)}
+                      </p>
+                    )}
+                    <p className="font-semibold text-[#711610]">S/ {Number(payment.amount).toFixed(2)}</p>
+                  </div>
                   <p className={payment.is_paid ? "font-semibold text-green-700" : "font-semibold text-amber-700"}>
-                    {payment.is_paid ? `Pagado ${payment.payment_date ?? ""}` : "Pendiente"}
+                    {payment.is_paid && payment.discount_type === "total"
+                      ? "Cubierto por descuento"
+                      : payment.is_paid
+                        ? `Pagado ${payment.payment_date ?? ""}`
+                        : "Pendiente"}
                   </p>
                 </div>
               ))}

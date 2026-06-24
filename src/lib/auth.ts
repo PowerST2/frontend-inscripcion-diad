@@ -6,6 +6,9 @@ export const AUTH_USER_KEY = "admision_auth_user";
 export type AuthUser = {
   id: number;
   name: string;
+  paternal_surname?: string | null;
+  maternal_surname?: string | null;
+  names?: string | null;
   email: string;
 };
 
@@ -30,7 +33,9 @@ export type LoginPayload = {
 };
 
 export type RegisterPayload = LoginPayload & {
-  name: string;
+  paternal_surname: string;
+  maternal_surname: string;
+  names: string;
   password_confirmation: string;
 };
 

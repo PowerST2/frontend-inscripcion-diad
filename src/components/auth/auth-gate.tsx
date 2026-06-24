@@ -9,6 +9,7 @@ import { AuthUser, clearAuthSession, getStoredAuthToken, getStoredAuthUser, logo
 import { ApplicantProgress, getApplicantProgress } from "@/lib/applicant";
 import { canAccessFlowPath, getNextFlowStep } from "@/lib/admission-flow";
 import { HEADER_PROCESS_LABEL } from "@/lib/site";
+import { isRegistrationActivityOpen } from "@/lib/schedule-activities";
 
 const PUBLIC_PATHS = new Set(["/", "/login-registro"]);
 const THEME_STORAGE_KEY = "admision_theme";
@@ -21,6 +22,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [progress, setProgress] = useState<ApplicantProgress | null>(null);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [publicRegistrationOpen, setPublicRegistrationOpen] = useState(false);
   const [ready, setReady] = useState(false);
 
   const isPublicPath = useMemo(() => PUBLIC_PATHS.has(pathname), [pathname]);
@@ -39,8 +41,10 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
     if (!storedToken && !isPublicPath) {
       router.replace("/login-registro");
+    } else if (storedToken && pathname === "/login-registro") {
+      router.replace("/my-profile");
     }
-  }, [isPublicPath, router]);
+  }, [isPublicPath, pathname, router]);
 
   useEffect(() => {
     if (!token) {
@@ -59,6 +63,17 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
     return () => window.removeEventListener("admision-progress-updated", refreshProgress);
   }, [token, pathname]);
+
+  useEffect(() => {
+    if (!isPublicPath || token) {
+      setPublicRegistrationOpen(false);
+      return;
+    }
+
+    isRegistrationActivityOpen()
+    .then(setPublicRegistrationOpen)
+    .catch(() => setPublicRegistrationOpen(false));
+  }, [isPublicPath, token]);
 
   useEffect(() => {
     if (!token || !progress || isPublicPath || pathname === "/my-profile") {
@@ -199,14 +214,14 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                 Salir
               </button>
               </>
-            ) : (
+            ) : publicRegistrationOpen ? (
               <Link
                 href="/login-registro"
                 className="rounded-md bg-[#711610] px-4 py-2 text-sm font-medium text-white hover:bg-[#5e120d]"
               >
                 Ingresar
               </Link>
-            )}
+            ) : null}
           </div>
         </div>
       </header>
@@ -249,16 +264,26 @@ function buildNotifications(progress: ApplicantProgress | null): {
     pending.push({ label: "Completar datos personales", href: "/personal-data" });
   }
 
-  if (!state.photo_complete) {
-    pending.push({ label: "Subir foto del postulante", href: "/personal-data" });
-  } else if (applicant?.photo_status === "pending") {
-    admin.push({ label: "Foto pendiente de aprobacion", href: "/personal-data" });
-  } else if (applicant?.photo_status === "rejected") {
-    pending.push({ label: "Foto rechazada: subir una nueva foto", href: "/personal-data" });
+  if (!state.identity_document_complete) {
+    pending.push({ label: "Subir documento de identidad", href: "/identity-document" });
   }
 
-  if (!state.identity_document_complete) {
-    pending.push({ label: "Subir documento de identidad", href: "/personal-data" });
+  if (!state.sworn_declaration_complete) {
+    if (applicant?.sworn_declaration?.status === "pending") {
+      admin.push({ label: "Declaracion jurada pendiente de aprobacion", href: "/sworn-affidavit" });
+    } else if (applicant?.sworn_declaration?.status === "rejected") {
+      pending.push({ label: "Declaracion jurada observada: volver a subir", href: "/sworn-affidavit" });
+    } else {
+      pending.push({ label: "Subir declaracion jurada", href: "/sworn-affidavit" });
+    }
+  }
+
+  if (!state.photo_complete) {
+    pending.push({ label: "Subir foto del postulante", href: "/photo" });
+  } else if (applicant?.photo_status === "pending") {
+    admin.push({ label: "Foto pendiente de aprobacion", href: "/photo" });
+  } else if (applicant?.photo_status === "rejected") {
+    pending.push({ label: "Foto rechazada: subir una nueva foto", href: "/photo" });
   }
 
   if ((applicant?.documents_review?.pending_count ?? 0) > 0) {
@@ -285,16 +310,6 @@ function buildNotifications(progress: ApplicantProgress | null): {
 
   if (!state.quiz_complete) {
     pending.push({ label: "Responder encuesta de postulante", href: "/quiz" });
-  }
-
-  if (!state.sworn_declaration_complete) {
-    if (applicant?.sworn_declaration?.status === "pending") {
-      admin.push({ label: "Declaracion jurada pendiente de aprobacion", href: "/sworn-affidavit" });
-    } else if (applicant?.sworn_declaration?.status === "rejected") {
-      pending.push({ label: "Declaracion jurada observada: volver a subir", href: "/sworn-affidavit" });
-    } else {
-      pending.push({ label: "Subir declaracion jurada", href: "/sworn-affidavit" });
-    }
   }
 
   if (state.sworn_declaration_complete && !state.payments_generated) {

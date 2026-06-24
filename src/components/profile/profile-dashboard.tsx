@@ -4,19 +4,20 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { FaCamera, FaCheck, FaClock, FaExclamationTriangle, FaFileAlt, FaIdCard, FaUser } from "react-icons/fa";
+import { FaCamera, FaCheck, FaClock, FaDownload, FaExclamationTriangle, FaFileAlt, FaIdCard, FaLock, FaUser } from "react-icons/fa";
 import { ApiError } from "@/lib/api";
 import { getStoredAuthToken } from "@/lib/auth";
-import { ApplicantProgress, getApplicantProgress } from "@/lib/applicant";
-import { getNextFlowStep } from "@/lib/admission-flow";
+import { ApplicantProgress, ApplicantProspectus, getApplicantProgress, getApplicantProspectus } from "@/lib/applicant";
+import { areConfirmationPrerequisitesComplete, getNextFlowStep } from "@/lib/admission-flow";
 
-type StepStatus = "done" | "pending" | "admin" | "rejected";
+type StepStatus = "done" | "pending" | "admin" | "rejected" | "locked";
 
 type TimelineStep = {
   label: string;
   description: string;
   href: string;
   status: StepStatus;
+  lockReason?: string;
 };
 
 const statusLabels: Record<StepStatus, string> = {
@@ -24,11 +25,13 @@ const statusLabels: Record<StepStatus, string> = {
   pending: "Pendiente",
   admin: "En evaluación",
   rejected: "Observado",
+  locked: "Bloqueado",
 };
 
 export default function ProfileDashboard() {
   const router = useRouter();
   const [progress, setProgress] = useState<ApplicantProgress | null>(null);
+  const [prospectus, setProspectus] = useState<ApplicantProspectus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,9 +42,13 @@ export default function ProfileDashboard() {
       return;
     }
 
-    getApplicantProgress(token)
-      .then((response) => {
-        setProgress(response);
+    Promise.all([
+      getApplicantProgress(token),
+      getApplicantProspectus(token),
+    ])
+      .then(([progressResponse, prospectusResponse]) => {
+        setProgress(progressResponse);
+        setProspectus(prospectusResponse.data);
       })
       .catch((caughtError) => {
         setError(
@@ -165,6 +172,8 @@ export default function ProfileDashboard() {
         </section>
       </div>
 
+      <ProspectusDownloadCard prospectus={prospectus} />
+
       <section className="rounded-lg border border-[#9A999D]/30 bg-white p-5">
         <div className="mb-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-[#9A999D]">
@@ -177,25 +186,7 @@ export default function ProfileDashboard() {
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {steps.map((step, index) => (
-            <Link
-              key={step.label}
-              href={step.href}
-              className={`relative rounded-lg border p-4 transition hover:shadow-md ${statusClass(step.status)}`}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm font-bold shadow-sm">
-                  {step.status === "done" ? <FaCheck /> : step.status === "rejected" ? <FaExclamationTriangle /> : <FaClock />}
-                </div>
-                <span className="rounded-full bg-white/80 px-2 py-1 text-xs font-semibold">
-                  {statusLabels[step.status]}
-                </span>
-              </div>
-              <p className="mt-4 text-xs font-semibold uppercase tracking-wide opacity-70">
-                Paso {index + 1}
-              </p>
-              <h3 className="mt-1 text-base font-semibold">{step.label}</h3>
-              <p className="mt-2 text-sm leading-5 opacity-80">{step.description}</p>
-            </Link>
+            <TimelineCard key={step.label} step={step} stepNumber={index + 1} />
           ))}
         </div>
       </section>
@@ -203,9 +194,58 @@ export default function ProfileDashboard() {
   );
 }
 
+function ProspectusDownloadCard({ prospectus }: { prospectus: ApplicantProspectus | null }) {
+  const isAvailable = Boolean(prospectus?.available && prospectus.document_url);
+  const message = prospectus?.message ?? "Cargando disponibilidad del prospecto.";
+
+  return (
+    <section className={`rounded-lg border p-5 ${isAvailable ? "border-green-200 bg-green-50" : "border-[#9A999D]/30 bg-white"}`}>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <div className={`flex h-11 w-11 items-center justify-center rounded-full ${isAvailable ? "bg-green-100 text-green-800" : "bg-[#E6D9AA]/30 text-[#711610]"}`}>
+            {isAvailable ? <FaDownload /> : <FaLock />}
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#9A999D]">
+              Prospecto
+            </p>
+            <h2 className="mt-1 text-xl font-semibold text-[#711610]">
+              Descargar prospecto
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-[#711610]">
+              {message}
+            </p>
+          </div>
+        </div>
+
+        {isAvailable ? (
+          <a
+            href={prospectus?.document_url ?? undefined}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-md bg-[#711610] px-5 py-3 text-sm font-semibold text-white hover:bg-[#5e120d]"
+          >
+            Descargar
+          </a>
+        ) : (
+          <button
+            type="button"
+            disabled
+            title={message}
+            className="cursor-not-allowed rounded-md bg-[#9A999D] px-5 py-3 text-sm font-semibold text-white"
+          >
+            No disponible
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function buildTimeline(progress: ApplicantProgress | null): TimelineStep[] {
   const state = progress?.progress ?? {};
   const applicant = progress?.applicant;
+  const canConfirmData = areConfirmationPrerequisitesComplete(progress);
 
   const photoStatus: StepStatus =
     applicant?.photo_status === "rejected"
@@ -248,16 +288,22 @@ function buildTimeline(progress: ApplicantProgress | null): TimelineStep[] {
       status: state.identity_complete ? "done" : "pending",
     },
     {
-      label: "Foto",
-      description: "Foto del postulante para revisión administrativa.",
-      href: "/personal-data",
-      status: photoStatus,
-    },
-    {
       label: "Documento de identidad",
       description: "DNI o pasaporte cargado en datos personales.",
-      href: "/personal-data",
+      href: "/identity-document",
       status: state.identity_document_complete ? "done" : "pending",
+    },
+    {
+      label: "Declaración jurada",
+      description: "Aceptación formal del reglamento de admisión.",
+      href: "/sworn-affidavit",
+      status: swornStatus,
+    },
+    {
+      label: "Foto",
+      description: "Foto del postulante para revisión administrativa.",
+      href: "/photo",
+      status: photoStatus,
     },
     {
       label: "Modalidad y carrera",
@@ -284,12 +330,6 @@ function buildTimeline(progress: ApplicantProgress | null): TimelineStep[] {
       status: state.quiz_complete ? "done" : "pending",
     },
     {
-      label: "Declaración jurada",
-      description: "Aceptación formal del reglamento de admisión.",
-      href: "/sworn-affidavit",
-      status: swornStatus,
-    },
-    {
       label: "Pagos",
       description: "Generación, seguimiento y validación del pago.",
       href: "/payment",
@@ -299,13 +339,15 @@ function buildTimeline(progress: ApplicantProgress | null): TimelineStep[] {
       label: "Confirmación",
       description: "Revisión final y confirmación de datos.",
       href: "/resume",
-      status: state.data_confirmed ? "done" : "pending",
+      status: state.data_confirmed ? "done" : canConfirmData ? "pending" : "locked",
+      lockReason: canConfirmData ? undefined : "Completa los primeros 10 pasos para habilitar la confirmación.",
     },
     {
       label: "Encuesta final",
       description: "Satisfacción sobre el sistema de inscripción.",
       href: "/satisfaction",
-      status: state.satisfaction_survey_complete ? "done" : "pending",
+      status: state.satisfaction_survey_complete ? "done" : state.data_confirmed ? "pending" : "locked",
+      lockReason: state.data_confirmed ? undefined : "Primero confirma tus datos en el paso 11.",
     },
   ];
 }
@@ -314,7 +356,49 @@ function statusClass(status: StepStatus) {
   if (status === "done") return "border-green-200 bg-green-50 text-green-800";
   if (status === "admin") return "border-amber-200 bg-amber-50 text-amber-800";
   if (status === "rejected") return "border-red-200 bg-red-50 text-red-800";
+  if (status === "locked") return "border-zinc-300 bg-zinc-900 text-zinc-100";
   return "border-[#9A999D]/30 bg-white text-[#711610]";
+}
+
+function TimelineCard({ step, stepNumber }: { step: TimelineStep; stepNumber: number }) {
+  const content = (
+    <>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm font-bold text-[#711610] shadow-sm">
+          {step.status === "done" ? <FaCheck /> : step.status === "rejected" ? <FaExclamationTriangle /> : <FaClock />}
+        </div>
+        <span className="rounded-full bg-white/80 px-2 py-1 text-xs font-semibold text-[#711610]">
+          {statusLabels[step.status]}
+        </span>
+      </div>
+      <p className="mt-4 text-xs font-semibold uppercase tracking-wide opacity-70">
+        Paso {stepNumber}
+      </p>
+      <h3 className="mt-1 text-base font-semibold">{step.label}</h3>
+      <p className="mt-2 text-sm leading-5 opacity-80">{step.description}</p>
+      {step.lockReason && (
+        <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-black/75 px-4 text-center text-sm font-semibold text-white opacity-0 transition group-hover:opacity-100">
+          {step.lockReason}
+        </span>
+      )}
+    </>
+  );
+
+  const className = `group relative rounded-lg border p-4 transition ${statusClass(step.status)}`;
+
+  if (step.status === "locked") {
+    return (
+      <div title={step.lockReason} aria-disabled="true" className={`${className} cursor-not-allowed opacity-90`}>
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <Link href={step.href} className={`${className} hover:shadow-md`}>
+      {content}
+    </Link>
+  );
 }
 
 function InfoRow({ icon, label, value }: { icon: ReactNode; label: string; value?: string | null }) {

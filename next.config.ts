@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
-const apiOrigin = new URL(process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000").origin;
+const apiOrigin = new URL(process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://backend-inscripciones.test/api").origin;
+const defaultBackendOrigin = new URL("http://backend-inscripciones.test/api").origin;
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1", "localhost"],
@@ -21,7 +22,7 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
               "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob:",
+              `img-src 'self' data: blob: ${apiOrigin} ${defaultBackendOrigin} https://images.unsplash.com`,
               "font-src 'self' data:",
               `connect-src 'self' ${apiOrigin}`,
               "frame-ancestors 'none'",

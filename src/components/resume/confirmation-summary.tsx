@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
+import { areConfirmationPrerequisitesComplete } from "@/lib/admission-flow";
 import { getStoredAuthToken } from "@/lib/auth";
 import { ApplicantProgress, confirmApplicantData, getApplicantProgress } from "@/lib/applicant";
 
@@ -39,8 +40,7 @@ export default function ConfirmationSummary() {
   const applicant = progress?.applicant;
   const canConfirm =
     accepted &&
-    progress?.progress.sworn_declaration_complete &&
-    progress?.progress.payments_complete;
+    areConfirmationPrerequisitesComplete(progress);
 
   const submit = async () => {
     if (!token || !canConfirm) return;
@@ -101,7 +101,15 @@ export default function ConfirmationSummary() {
         </div>
 
         <div className="grid gap-3 md:grid-cols-3">
+          <Status label="Declaración inicial" ok={Boolean(progress?.progress.initial_consent_complete)} />
+          <Status label="Datos personales" ok={Boolean(progress?.progress.identity_complete)} />
+          <Status label="Documento de identidad" ok={Boolean(progress?.progress.identity_document_complete)} />
           <Status label="Declaración jurada" ok={Boolean(progress?.progress.sworn_declaration_complete)} />
+          <Status label="Foto" ok={Boolean(progress?.progress.photo_complete)} />
+          <Status label="Modalidad" ok={Boolean(progress?.progress.modality_complete)} />
+          <Status label="Documentos" ok={Boolean(progress?.progress.documents_complete)} />
+          <Status label="Familia" ok={Boolean(progress?.progress.family_complete)} />
+          <Status label="Encuesta" ok={Boolean(progress?.progress.quiz_complete)} />
           <Status label="Pago validado" ok={Boolean(progress?.progress.payments_complete)} />
           <Status label="Datos confirmados" ok={Boolean(progress?.progress.data_confirmed)} />
         </div>

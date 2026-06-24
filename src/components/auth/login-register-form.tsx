@@ -15,7 +15,9 @@ type AuthMode = "login" | "register";
 export default function LoginRegisterForm() {
   const router = useRouter();
   const [mode, setMode] = useState<AuthMode>("login");
-  const [name, setName] = useState("");
+  const [paternalSurname, setPaternalSurname] = useState("");
+  const [maternalSurname, setMaternalSurname] = useState("");
+  const [names, setNames] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
@@ -34,7 +36,9 @@ export default function LoginRegisterForm() {
     try {
       const response = isRegister
         ? await register({
-            name,
+            paternal_surname: paternalSurname.trim(),
+            maternal_surname: maternalSurname.trim(),
+            names: names.trim(),
             email,
             password,
             password_confirmation: passwordConfirmation,
@@ -100,20 +104,55 @@ export default function LoginRegisterForm() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {isRegister && (
-              <label className="block text-sm">
-                <span className="mb-1 block font-medium text-[#711610]">Nombres y apellidos</span>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  className="w-full rounded-md border border-[#9A999D]/50 px-3 py-2 text-[#171717] outline-none focus:border-[#711610]"
-                  autoComplete="name"
-                  required
-                />
-                {firstFieldError("name") && (
-                  <span className="mt-1 block text-xs text-red-700">{firstFieldError("name")}</span>
-                )}
-              </label>
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="block text-sm">
+                  <span className="mb-1 block font-medium text-[#711610]">Apellido paterno</span>
+                  <input
+                    type="text"
+                    value={paternalSurname}
+                    onChange={(event) => setPaternalSurname(event.target.value)}
+                    className="w-full rounded-md border border-[#9A999D]/50 px-3 py-2 text-[#171717] outline-none focus:border-[#711610]"
+                    autoComplete="family-name"
+                    maxLength={50}
+                    required
+                  />
+                  {firstFieldError("paternal_surname") && (
+                    <span className="mt-1 block text-xs text-red-700">{firstFieldError("paternal_surname")}</span>
+                  )}
+                </label>
+
+                <label className="block text-sm">
+                  <span className="mb-1 block font-medium text-[#711610]">Apellido materno</span>
+                  <input
+                    type="text"
+                    value={maternalSurname}
+                    onChange={(event) => setMaternalSurname(event.target.value)}
+                    className="w-full rounded-md border border-[#9A999D]/50 px-3 py-2 text-[#171717] outline-none focus:border-[#711610]"
+                    autoComplete="additional-name"
+                    maxLength={50}
+                    required
+                  />
+                  {firstFieldError("maternal_surname") && (
+                    <span className="mt-1 block text-xs text-red-700">{firstFieldError("maternal_surname")}</span>
+                  )}
+                </label>
+
+                <label className="block text-sm md:col-span-2">
+                  <span className="mb-1 block font-medium text-[#711610]">Nombres</span>
+                  <input
+                    type="text"
+                    value={names}
+                    onChange={(event) => setNames(event.target.value)}
+                    className="w-full rounded-md border border-[#9A999D]/50 px-3 py-2 text-[#171717] outline-none focus:border-[#711610]"
+                    autoComplete="given-name"
+                    maxLength={100}
+                    required
+                  />
+                  {firstFieldError("names") && (
+                    <span className="mt-1 block text-xs text-red-700">{firstFieldError("names")}</span>
+                  )}
+                </label>
+              </div>
             )}
 
             <label className="block text-sm">

@@ -129,9 +129,25 @@ function isPeruCountry(country?: CatalogOption): boolean {
   return code === "PE" || name === "PERU";
 }
 
-export default function PersonalDataWizard() {
+type PersonalDataWizardProps = {
+  initialStep?: InternalStep;
+};
+
+const STEP_TITLES: Record<InternalStep, string> = {
+  1: "Datos personales del postulante",
+  2: "Foto del postulante",
+  3: "Documento de identidad",
+};
+
+const STEP_LABELS: Record<InternalStep, string> = {
+  1: "Paso 2 de 12",
+  2: "Paso 5 de 12",
+  3: "Paso 3 de 12",
+};
+
+export default function PersonalDataWizard({ initialStep = 1 }: PersonalDataWizardProps) {
   const router = useRouter();
-  const [step, setStep] = useState<InternalStep>(1);
+  const [step] = useState<InternalStep>(initialStep);
   const [token, setToken] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(initialFormState);
   const [documentTypes, setDocumentTypes] = useState<Array<CatalogOption & { code: DocumentType }>>([]);
@@ -197,7 +213,9 @@ export default function PersonalDataWizard() {
       setForm((prev) => ({
         ...prev,
         email: user.email,
-        names: prev.names || user.name,
+        fatherLastName: prev.fatherLastName || user.paternal_surname || "",
+        motherLastName: prev.motherLastName || user.maternal_surname || "",
+        names: prev.names || user.names || user.name,
       }));
     }
 
@@ -492,7 +510,7 @@ export default function PersonalDataWizard() {
       await saveApplicantPersonalData(token, buildPayload());
       window.dispatchEvent(new Event("admision-progress-updated"));
       setMessage("Datos personales guardados correctamente.");
-      setStep(2);
+      router.push("/identity-document");
     } catch (caughtError) {
       if (caughtError instanceof ApiError) {
         setError(caughtError.message);
@@ -517,7 +535,7 @@ export default function PersonalDataWizard() {
       await uploadApplicantPhoto(token, photo);
       window.dispatchEvent(new Event("admision-progress-updated"));
       setMessage("Foto guardada correctamente.");
-      setStep(3);
+      router.push("/modality");
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
@@ -542,7 +560,7 @@ export default function PersonalDataWizard() {
       setIdentityDocumentComplete(true);
       window.dispatchEvent(new Event("admision-progress-updated"));
       setMessage("Documento de identidad guardado correctamente.");
-      router.push("/modality");
+      router.push("/sworn-affidavit");
     } catch (caughtError) {
       setError(
         caughtError instanceof ApiError
@@ -553,8 +571,6 @@ export default function PersonalDataWizard() {
       setIsSubmitting(false);
     }
   };
-
-  const goBack = () => setStep((prev) => (prev > 1 ? ((prev - 1) as InternalStep) : prev));
 
   if (isLoading) {
     return (
@@ -568,17 +584,19 @@ export default function PersonalDataWizard() {
     <section className="mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center px-4 py-8 md:px-6">
       <header className="mb-6 rounded-lg border border-[#711610]/20 bg-white p-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-[#711610]">
-          Paso interno {step} de 3
+          {STEP_LABELS[step]}
         </p>
         <h1 className="mt-1 text-2xl font-semibold text-[#711610] md:text-3xl">
-          Datos personales del postulante
+          {STEP_TITLES[step]}
         </h1>
       </header>
 
-      <div className="mb-6 rounded-lg border border-[#711610]/30 bg-[#E6D9AA]/35 p-4 text-sm text-[#711610]">
-        <p className="font-semibold">Importante</p>
-        <p>Complete solo los datos del postulante. No registrar datos del padre, madre o apoderado.</p>
-      </div>
+      {step === 1 && (
+        <div className="mb-6 rounded-lg border border-[#711610]/30 bg-[#E6D9AA]/35 p-4 text-sm text-[#711610]">
+          <p className="font-semibold">Importante</p>
+          <p>Complete solo los datos del postulante. No registrar datos del padre, madre o apoderado.</p>
+        </div>
+      )}
 
       {(error || message) && (
         <div
@@ -850,7 +868,7 @@ export default function PersonalDataWizard() {
           </div>
 
           <WizardFooter
-            backHref="/login-registro"
+            backHref="/my-profile"
             submitLabel="Guardar y continuar"
             isSubmitting={isSubmitting}
           />
@@ -911,7 +929,7 @@ export default function PersonalDataWizard() {
           </div>
 
           <WizardFooter
-            onBack={goBack}
+            backHref="/sworn-affidavit"
             submitLabel="Subir foto"
             isSubmitting={isSubmitting}
             disabled={!photo || photo.size === 0}
@@ -961,15 +979,15 @@ export default function PersonalDataWizard() {
           </div>
 
           <WizardFooter
-            onBack={goBack}
+            backHref="/personal-data"
             extraAction={
               identityDocumentComplete ? (
                 <button
                   type="button"
-                  onClick={() => router.push("/modality")}
+                  onClick={() => router.push("/sworn-affidavit")}
                   className="rounded-md border border-[#711610] px-5 py-2 text-sm font-medium text-[#711610] hover:bg-[#711610]/10"
                 >
-                  Continuar a modalidad
+                  Continuar a declaración jurada
                 </button>
               ) : null
             }

@@ -36,7 +36,9 @@ type ModalityGroup = {
 };
 
 const fallbackImage =
-  "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1200&q=80";
+  "/images/modality-default.svg";
+const vacancyRightImage = "/images/vacancy-right.svg";
+const noVacancyRightImage = "/images/no-vacancy-right.svg";
 
 const groupDescriptions: Record<string, { title: string; description: string }> = {
   ordinary: {
@@ -73,12 +75,12 @@ const groupDescriptions: Record<string, { title: string; description: string }> 
 
 
 const groupOrder = [
-  "continueStudies",
   "ordinary",
   "extraordinaryStart",
   "ien",
   "beca18",
   "interested",
+  "continueStudies",
 ];
 
 const modalityGroupByCode: Record<string, string> = {
@@ -321,6 +323,11 @@ export default function ModalityWizard() {
     setMessage(null);
   };
 
+  const chooseModalityAndContinue = (id: number) => {
+    chooseModality(id);
+    setCurrentStep(3);
+  };
+
   const handleFacultyChange = (value: string) => {
     setFacultyId(value);
     setSpeciality1Id("");
@@ -454,21 +461,21 @@ export default function ModalityWizard() {
             <VacancyCard
               title="Con derecho a vacante"
               description="Postula para competir por una plaza de ingreso a una especialidad UNI, segun modalidad y cuadro de vacantes."
-              imageUrl="https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1200&q=80"
+              imageUrl={vacancyRightImage}
               selected={vacancyRight === "with"}
               onClick={() => chooseVacancyRight("with")}
             />
             <VacancyCard
               title="Sin derecho a vacante"
               description="Participa como interesado: rinde evaluaciones y recibe sus notas, pero no accede a una vacante."
-              imageUrl="https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=1200&q=80"
+              imageUrl={noVacancyRightImage}
               selected={vacancyRight === "without"}
               onClick={() => chooseVacancyRight("without")}
             />
           </div>
 
           <StepFooter
-            backHref="/personal-data"
+            backHref="/photo"
             nextLabel="Continuar"
             nextDisabled={!vacancyRight}
             onNext={continueFromVacancy}
@@ -508,6 +515,7 @@ export default function ModalityWizard() {
                         modality={modality}
                         selected={String(modality.id) === modalityId}
                         onClick={() => chooseModality(modality.id)}
+                        onDoubleClick={() => chooseModalityAndContinue(modality.id)}
                       />
                     ))}
                   </div>
@@ -951,15 +959,18 @@ function ModalityCard({
   modality,
   selected,
   onClick,
+  onDoubleClick,
 }: {
   modality: AdmissionModality;
   selected: boolean;
   onClick: () => void;
+  onDoubleClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
       className={`overflow-hidden rounded-lg border bg-white text-left transition hover:shadow-md ${
         selected
           ? "border-[#711610] ring-2 ring-[#711610]/30"

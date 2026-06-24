@@ -265,8 +265,19 @@ export type ApplicantPayment = {
   tariff_code: string | null;
   description: string | null;
   amount: string | number;
+  original_amount: string | number | null;
+  discount_amount: string | number | null;
+  discount_type: "partial" | "total" | string | null;
+  discount_reason: string | null;
   is_paid: boolean;
   payment_date: string | null;
+};
+
+export type ApplicantProspectus = {
+  available: boolean;
+  is_paid: boolean;
+  document_url: string | null;
+  message: string;
 };
 
 export type SatisfactionSurveyPayload = {
@@ -542,6 +553,12 @@ export function uploadSwornDeclaration(token: string, document: File) {
 
 export function getApplicantPayments(token: string) {
   return apiRequest<{ status: "success"; data: ApplicantPayment[] }>("/applicants/payments", {
+    token,
+  });
+}
+
+export function getApplicantProspectus(token: string) {
+  return apiRequest<{ status: "success"; data: ApplicantProspectus }>("/applicants/prospectus", {
     token,
   });
 }

@@ -67,7 +67,7 @@ export default function SwornDeclarationForm() {
       setSelectedFile(null);
       window.dispatchEvent(new Event("admision-progress-updated"));
       setMessage("Declaración jurada enviada correctamente.");
-      router.push("/my-profile");
+      router.push("/photo");
     } catch (caughtError) {
       setError(
         caughtError instanceof ApiError
@@ -158,7 +158,7 @@ export default function SwornDeclarationForm() {
 
             <footer className="flex flex-wrap items-center justify-between gap-3">
               <Link
-                href="/resume"
+                href="/identity-document"
                 className="rounded-md border border-[#711610] px-5 py-2 text-sm font-medium text-[#711610] hover:bg-[#711610]/10"
               >
                 Regresar

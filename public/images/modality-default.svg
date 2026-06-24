@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 520" role="img" aria-label="Modalidad de admisión UNI">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8f4e8"/>
+      <stop offset="1" stop-color="#e6d9aa"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="520" fill="url(#bg)"/>
+  <path d="M120 384h960" stroke="#711610" stroke-width="16" stroke-linecap="round" opacity=".16"/>
+  <g fill="#711610">
+    <path d="M250 320h700v52H250z" opacity=".9"/>
+    <path d="M300 178h600v50H300z"/>
+    <path d="M350 238h72v82h-72zM502 238h72v82h-72zM654 238h72v82h-72zM806 238h72v82h-72z" opacity=".9"/>
+    <path d="M600 92l390 86H210z" opacity=".94"/>
+  </g>
+  <circle cx="600" cy="176" r="34" fill="#f8f4e8" opacity=".95"/>
+</svg>
