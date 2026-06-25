@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getSatisfactionSurvey } from "@/lib/applicant";
+import { downloadApplicantFicha, getSatisfactionSurvey } from "@/lib/applicant";
+import { ApiError } from "@/lib/api";
 import { getStoredAuthToken } from "@/lib/auth";
 import { isFichaActivityOpen } from "@/lib/schedule-activities";
 import { getSystemDocumentUrl } from "@/lib/system-documents";
@@ -12,8 +13,10 @@ export default function RegistrationComplete() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isFichaLoading, setIsFichaLoading] = useState(true);
-  const [fichaUrl, setFichaUrl] = useState<string | null>(null);
+  const [isFichaAvailable, setIsFichaAvailable] = useState(false);
+  const [isDownloadingFicha, setIsDownloadingFicha] = useState(false);
   const [fichaMessage, setFichaMessage] = useState<string | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
 
   useEffect(() => {
     const token = getStoredAuthToken();
@@ -22,6 +25,8 @@ export default function RegistrationComplete() {
       router.replace("/login-registro");
       return;
     }
+
+    setAuthToken(token);
 
     getSatisfactionSurvey(token)
       .then((response) => {
@@ -38,7 +43,7 @@ export default function RegistrationComplete() {
 
   const loadFichaAvailability = async () => {
     setIsFichaLoading(true);
-    setFichaUrl(null);
+    setIsFichaAvailable(false);
     setFichaMessage(null);
 
     try {
@@ -48,7 +53,7 @@ export default function RegistrationComplete() {
       ]);
 
       if (isFichaOpen && documentUrl) {
-        setFichaUrl(documentUrl);
+        setIsFichaAvailable(true);
         setFichaMessage("Tu ficha está disponible para descargar.");
       } else {
         setFichaMessage(
@@ -61,6 +66,30 @@ export default function RegistrationComplete() {
       );
     } finally {
       setIsFichaLoading(false);
+    }
+  };
+
+  const handleDownloadFicha = async () => {
+    if (!authToken) {
+      router.replace("/login-registro");
+      return;
+    }
+
+    setIsDownloadingFicha(true);
+
+    try {
+      const blob = await downloadApplicantFicha(authToken);
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error) {
+      setFichaMessage(
+        error instanceof ApiError
+          ? error.message
+          : "No se pudo descargar la ficha. Inténtalo nuevamente."
+      );
+    } finally {
+      setIsDownloadingFicha(false);
     }
   };
 
@@ -87,17 +116,17 @@ export default function RegistrationComplete() {
         <div className="mt-6 rounded-lg border border-green-200 bg-white p-4 text-sm leading-6">
           {isFichaLoading ? (
             <p>Verificando disponibilidad de ficha...</p>
-          ) : fichaUrl ? (
+          ) : isFichaAvailable ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p>{fichaMessage}</p>
-              <a
-                href={fichaUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex rounded-md bg-[#711610] px-5 py-2 text-sm font-medium text-white hover:bg-[#5e120d]"
+              <button
+                type="button"
+                onClick={handleDownloadFicha}
+                disabled={isDownloadingFicha}
+                className="inline-flex rounded-md bg-[#711610] px-5 py-2 text-sm font-medium text-white hover:bg-[#5e120d] disabled:cursor-not-allowed disabled:bg-gray-400"
               >
-                Descargar ficha
-              </a>
+                {isDownloadingFicha ? "Generando ficha..." : "Descargar ficha"}
+              </button>
             </div>
           ) : (
             <p>{fichaMessage}</p>

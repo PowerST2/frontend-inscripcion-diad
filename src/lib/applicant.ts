@@ -1,4 +1,4 @@
-import { apiRequest } from "./api";
+import { API_BASE_URL, ApiError, apiRequest } from "./api";
 
 export type CatalogOption = {
   id: number;
@@ -580,6 +580,30 @@ export function getApplicantProspectus(token: string) {
   return apiRequest<{ status: "success"; data: ApplicantProspectus }>("/applicants/prospectus", {
     token,
   });
+}
+
+export async function downloadApplicantFicha(token: string) {
+  const response = await fetch(`${API_BASE_URL}/applicants/ficha`, {
+    headers: {
+      Accept: "application/pdf",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    let message = "No se pudo descargar la ficha.";
+
+    try {
+      const data = (await response.json()) as { message?: string };
+      message = data.message ?? message;
+    } catch {
+      // The server may return a non-JSON error page if PDF generation fails unexpectedly.
+    }
+
+    throw new ApiError(message, response.status);
+  }
+
+  return response.blob();
 }
 
 export function confirmApplicantData(token: string) {
