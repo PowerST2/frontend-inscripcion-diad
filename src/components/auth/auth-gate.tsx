@@ -8,7 +8,7 @@ import { FiBell } from "react-icons/fi";
 import { AuthUser, clearAuthSession, getStoredAuthToken, getStoredAuthUser, logout } from "@/lib/auth";
 import { ApplicantProgress, getApplicantProgress } from "@/lib/applicant";
 import { canAccessFlowPath, getNextFlowStep } from "@/lib/admission-flow";
-import { HEADER_PROCESS_LABEL } from "@/lib/site";
+import { getSiteLabels, HEADER_PROCESS_LABEL } from "@/lib/site";
 import { isRegistrationActivityOpen } from "@/lib/schedule-activities";
 
 const PUBLIC_PATHS = new Set(["/", "/login-registro"]);
@@ -23,9 +23,16 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const [progress, setProgress] = useState<ApplicantProgress | null>(null);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [publicRegistrationOpen, setPublicRegistrationOpen] = useState(false);
+  const [headerProcessLabel, setHeaderProcessLabel] = useState(HEADER_PROCESS_LABEL);
   const [ready, setReady] = useState(false);
 
   const isPublicPath = useMemo(() => PUBLIC_PATHS.has(pathname), [pathname]);
+
+  useEffect(() => {
+    getSiteLabels()
+    .then((labels) => setHeaderProcessLabel(labels.headerProcessLabel))
+    .catch(() => setHeaderProcessLabel(HEADER_PROCESS_LABEL));
+  }, []);
 
   useEffect(() => {
     const storedToken = getStoredAuthToken();
@@ -133,7 +140,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
               className="h-11 w-11 object-contain"
               priority
             />
-            <p className="text-base font-semibold md:text-lg">{HEADER_PROCESS_LABEL}</p>
+            <p className="text-base font-semibold md:text-lg">{headerProcessLabel}</p>
           </Link>
 
           <div className="flex items-center gap-3">

@@ -1,14 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
 import {
   login,
   persistAuthSession,
   register,
 } from "@/lib/auth";
-import { ADMISSION_PROCESS_LABEL } from "@/lib/site";
+import { ADMISSION_PROCESS_LABEL, getSiteLabels } from "@/lib/site";
 
 type AuthMode = "login" | "register";
 
@@ -24,8 +24,15 @@ export default function LoginRegisterForm() {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [admissionProcessLabel, setAdmissionProcessLabel] = useState(ADMISSION_PROCESS_LABEL);
 
   const isRegister = mode === "register";
+
+  useEffect(() => {
+    getSiteLabels()
+    .then((labels) => setAdmissionProcessLabel(labels.admissionProcessLabel))
+    .catch(() => setAdmissionProcessLabel(ADMISSION_PROCESS_LABEL));
+  }, []);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -69,7 +76,7 @@ export default function LoginRegisterForm() {
       <div className="grid w-full overflow-hidden rounded-lg border border-[#9A999D]/30 bg-white shadow-sm md:grid-cols-[0.9fr_1.1fr]">
         <aside className="bg-[#711610] p-6 text-white md:p-8">
           <p className="text-sm font-semibold uppercase tracking-wide text-[#E6D9AA]">
-            {ADMISSION_PROCESS_LABEL}
+            {admissionProcessLabel}
           </p>
           <h1 className="mt-4 text-2xl font-semibold md:text-3xl">
             Acceso al portal del postulante

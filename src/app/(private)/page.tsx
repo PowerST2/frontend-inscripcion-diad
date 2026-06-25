@@ -1,7 +1,7 @@
 import type {Metadata} from "next";
 import React from "react";
 import Link from "next/link";
-import { ADMISSION_PROCESS_LABEL } from "@/lib/site";
+import { getSiteLabels } from "@/lib/site";
 import { isRegistrationActivityOpen, isSemiScholarshipActivityOpen } from "@/lib/schedule-activities";
 
 export const metadata: Metadata = {
@@ -10,9 +10,10 @@ export const metadata: Metadata = {
 }
 
 export default async function HomePage() {
-  const [isRegistrationOpen, isSemiScholarshipOpen] = await Promise.all([
+  const [isRegistrationOpen, isSemiScholarshipOpen, siteLabels] = await Promise.all([
     isRegistrationActivityOpen(),
     isSemiScholarshipActivityOpen(),
+    getSiteLabels(),
   ]);
 
   return (
@@ -21,7 +22,7 @@ export default async function HomePage() {
           <div className="text-center max-w-3xl mx-auto mb-16">
             <div
                 className="inline-block bg-[#E6D9AA] text-[#711610] px-4 py-2 rounded-full text-sm font-semibold mb-6">
-              {ADMISSION_PROCESS_LABEL.toUpperCase()}
+              {siteLabels.admissionProcessLabel.toUpperCase()}
             </div>
             <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
               Tu camino hacia la{" "}
@@ -80,7 +81,7 @@ export default async function HomePage() {
                     </h3>
                   </div>
                   <p className="text-gray-700 mb-4">
-                    Las solicitudes de semibeca para el {ADMISSION_PROCESS_LABEL} <span
+                    Las solicitudes de semibeca para el {siteLabels.admissionProcessLabel} <span
                       className="font-bold text-[#711610]">están abiertas</span>.
                     Si calificas académicamente, puedes solicitar apoyo económico.
                   </p>
