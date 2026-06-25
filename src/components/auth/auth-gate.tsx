@@ -21,6 +21,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [progress, setProgress] = useState<ApplicantProgress | null>(null);
+  const [isProgressRefreshing, setIsProgressRefreshing] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [publicRegistrationOpen, setPublicRegistrationOpen] = useState(false);
   const [headerProcessLabel, setHeaderProcessLabel] = useState(HEADER_PROCESS_LABEL);
@@ -60,9 +61,11 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     }
 
     const refreshProgress = () => {
+      setIsProgressRefreshing(true);
       getApplicantProgress(token)
       .then(setProgress)
-      .catch(() => setProgress(null));
+      .catch(() => setProgress(null))
+      .finally(() => setIsProgressRefreshing(false));
     };
 
     refreshProgress();
@@ -83,14 +86,14 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   }, [isPublicPath, token]);
 
   useEffect(() => {
-    if (!token || !progress || isPublicPath || pathname === "/my-profile") {
+    if (!token || !progress || isProgressRefreshing || isPublicPath || pathname === "/my-profile") {
       return;
     }
 
     if (!canAccessFlowPath(pathname, progress)) {
       router.replace(getNextFlowStep(progress).href);
     }
-  }, [isPublicPath, pathname, progress, router, token]);
+  }, [isProgressRefreshing, isPublicPath, pathname, progress, router, token]);
 
   const notifications = useMemo(() => buildNotifications(progress), [progress]);
   const notificationCount = notifications.pending.length + notifications.admin.length;

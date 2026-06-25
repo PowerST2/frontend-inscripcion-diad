@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
-import { FaCheckCircle, FaFileAlt, FaUpload } from "react-icons/fa";
+import { FaCheckCircle, FaClock, FaExclamationTriangle, FaFileAlt, FaUpload } from "react-icons/fa";
 import { ApiError } from "@/lib/api";
 import { getStoredAuthToken } from "@/lib/auth";
 import {
@@ -192,80 +192,142 @@ export default function DocumentsUploadForm() {
         </div>
       </section>
 
+      <section className="mb-5 rounded-lg border border-[#E6D9AA] bg-[#E6D9AA]/20 p-5 text-sm leading-6 text-[#711610]">
+        <p className="font-semibold">Indicaciones para subir documentos</p>
+        <p>
+          Selecciona cada archivo en la columna izquierda y luego presiona “Subir documento”.
+          En la columna derecha verás si ya fue cargado, si está pendiente de evaluación o si fue observado.
+        </p>
+      </section>
+
       {requiredDocuments.length === 0 ? (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-5 text-sm leading-6 text-[#711610]">
           No hay documentos activos configurados para esta modalidad.
         </div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="space-y-4">
           {requiredDocuments.map((document) => {
             const uploaded = uploadedByName.get(document.document_name);
             const isRejected = uploaded?.status === "rejected";
             const isPending = uploaded?.status === "pending";
+            const isApproved = uploaded?.status === "approved";
             const selectedFile = selectedFiles[document.document_name] ?? null;
             const isUploading = uploadingDocument === document.document_name;
 
             return (
               <article
                 key={document.id}
-                className="rounded-lg border border-[#9A999D]/30 bg-white p-5"
+                className={`rounded-lg border bg-white p-5 ${
+                  uploaded && !isRejected
+                    ? "border-green-200"
+                    : isRejected
+                      ? "border-red-200"
+                      : "border-[#9A999D]/30"
+                }`}
               >
-                <div className="flex gap-4">
-                  <div
-                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md ${
-                      uploaded && !isRejected
-                        ? "bg-green-100 text-green-700"
-                        : isRejected
-                          ? "bg-red-100 text-red-700"
-                          : "bg-[#E6D9AA]/40 text-[#711610]"
-                    }`}
-                  >
-                    {uploaded && !isRejected ? <FaCheckCircle /> : <FaFileAlt />}
-                  </div>
-                  <div className="min-w-0 flex-1">
+                <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+                  <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-[#9A999D]">
-                      {document.document_code}
+                      Documento requerido
                     </p>
-                    <h2 className="mt-1 text-base font-semibold leading-6 text-[#711610]">
-                      {document.document_name}
-                    </h2>
-                    {uploaded && !isRejected && (
-                      <p className="mt-2 text-sm text-green-700">
-                        {isPending ? "Pendiente de evaluación" : "Aprobado"} · cargado el{" "}
-                        {formatDate(uploaded.created_at)}
+                    <div className="mt-2 flex gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-[#E6D9AA]/40 text-[#711610]">
+                        <FaFileAlt />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-[#9A999D]">
+                          {document.document_code}
+                        </p>
+                        <h2 className="mt-1 text-base font-semibold leading-6 text-[#711610]">
+                          {document.document_name}
+                        </h2>
+                      </div>
+                    </div>
+
+                    <label className="mt-4 block cursor-pointer rounded-lg border border-dashed border-[#9A999D]/60 bg-[#E6D9AA]/10 px-4 py-5 text-center text-sm text-[#711610] transition hover:border-[#711610] hover:bg-[#E6D9AA]/25">
+                      <FaUpload className="mx-auto mb-2 h-5 w-5" />
+                      <span className="block font-semibold">
+                        {selectedFile ? selectedFile.name : "Elegir archivo"}
+                      </span>
+                      <span className="mt-1 block text-xs text-[#9A999D]">
+                        Formatos permitidos: JPG, JPEG, PNG o PDF.
+                      </span>
+                      <input
+                        type="file"
+                        accept=".jpg,.jpeg,.png,.pdf"
+                        onChange={(event) => handleFileChange(document.document_name, event)}
+                        className="sr-only"
+                      />
+                    </label>
+
+                    {selectedFile && (
+                      <p className="mt-3 text-sm text-[#711610]">
+                        {selectedFile.name} · {formatFileSize(selectedFile)}
                       </p>
                     )}
-                    {isRejected && (
-                      <p className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm leading-6 text-red-700">
-                        Rechazado: {uploaded.rejection_reason ?? "Sin motivo registrado."}
-                      </p>
-                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => handleUpload(document.document_name)}
+                      disabled={!selectedFile || isUploading}
+                      className="mt-3 inline-flex items-center gap-2 rounded-md bg-[#711610] px-4 py-2 text-sm font-medium text-white hover:bg-[#5e120d] disabled:cursor-not-allowed disabled:bg-[#9A999D]"
+                    >
+                      <FaUpload className="text-xs" />
+                      {isUploading ? "Subiendo..." : uploaded ? "Reemplazar" : "Subir documento"}
+                    </button>
                   </div>
-                </div>
 
-                <div className="mt-4 space-y-3">
-                  <input
-                    type="file"
-                    accept=".jpg,.jpeg,.png,.pdf"
-                    onChange={(event) => handleFileChange(document.document_name, event)}
-                    className="form-input text-sm"
-                  />
-
-                  {selectedFile && (
-                    <p className="text-sm text-[#711610]">
-                      {selectedFile.name} · {formatFileSize(selectedFile)}
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[#9A999D]">
+                      Estado del documento
                     </p>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => handleUpload(document.document_name)}
-                    disabled={!selectedFile || isUploading}
-                    className="inline-flex items-center gap-2 rounded-md bg-[#711610] px-4 py-2 text-sm font-medium text-white hover:bg-[#5e120d] disabled:cursor-not-allowed disabled:bg-[#9A999D]"
-                  >
-                    <FaUpload className="text-xs" />
-                    {isUploading ? "Subiendo..." : uploaded ? "Reemplazar" : "Subir documento"}
-                  </button>
+                    <div
+                      className={`mt-2 rounded-lg border px-4 py-4 text-sm leading-6 ${
+                        isRejected
+                          ? "border-red-200 bg-red-50 text-red-800"
+                          : uploaded
+                            ? "border-green-200 bg-green-50 text-green-800"
+                            : "border-amber-200 bg-amber-50 text-amber-800"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 font-semibold">
+                        {isRejected ? (
+                          <FaExclamationTriangle />
+                        ) : uploaded ? (
+                          <FaCheckCircle />
+                        ) : (
+                          <FaClock />
+                        )}
+                        {isRejected
+                          ? "Observado"
+                          : isApproved
+                            ? "Aprobado"
+                            : isPending
+                              ? "Pendiente de evaluación"
+                              : uploaded
+                                ? "Cargado"
+                                : "Falta subir"}
+                      </div>
+                      {uploaded && (
+                        <p className="mt-2">Cargado el {formatDate(uploaded.created_at)}</p>
+                      )}
+                      {isRejected && (
+                        <p className="mt-2">
+                          Motivo: {uploaded.rejection_reason ?? "Sin motivo registrado."}
+                        </p>
+                      )}
+                      {uploaded?.document_url && (
+                        <a
+                          href={uploaded.document_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-3 inline-flex font-semibold underline"
+                        >
+                          Ver archivo enviado
+                        </a>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </article>
             );

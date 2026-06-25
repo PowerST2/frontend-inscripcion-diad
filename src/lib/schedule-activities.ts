@@ -9,6 +9,7 @@ const REGISTRATION_ACTIVITY_NAMES = [
 ];
 
 const SEMI_SCHOLARSHIP_ACTIVITY_NAMES = ["Semibeca", "Semibecas"];
+const FICHA_ACTIVITY_NAMES = ["Ficha", "ficha"];
 
 type ScheduleActivityResponse = {
   status: "success";
@@ -21,6 +22,10 @@ export function isRegistrationActivityOpen() {
 
 export function isSemiScholarshipActivityOpen() {
   return isAnyScheduleActivityActive(SEMI_SCHOLARSHIP_ACTIVITY_NAMES);
+}
+
+export function isFichaActivityOpen() {
+  return isAnyScheduleActivityActive(FICHA_ACTIVITY_NAMES);
 }
 
 async function isAnyScheduleActivityActive(names: string[]) {

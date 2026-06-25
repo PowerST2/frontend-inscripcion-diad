@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
 import { getStoredAuthToken } from "@/lib/auth";
-import { saveSatisfactionSurvey } from "@/lib/applicant";
+import { getSatisfactionSurvey, saveSatisfactionSurvey } from "@/lib/applicant";
 
 type FormState = {
   overall_rating: string;
@@ -42,6 +42,7 @@ export default function SatisfactionSurveyForm() {
   const [token, setToken] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(initialForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -52,6 +53,15 @@ export default function SatisfactionSurveyForm() {
       return;
     }
     setToken(storedToken);
+
+    getSatisfactionSurvey(storedToken)
+      .then((response) => {
+        if (response.data) {
+          setIsCompleted(true);
+          router.replace("/registration-complete");
+        }
+      })
+      .catch(() => undefined);
   }, [router]);
 
   const canSubmit =
@@ -68,7 +78,12 @@ export default function SatisfactionSurveyForm() {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!token || !canSubmit) return;
+    if (!token) return;
+
+    if (!canSubmit) {
+      setError("Completa las calificaciones obligatorias antes de enviar la encuesta.");
+      return;
+    }
 
     setError(null);
     setMessage(null);
@@ -94,7 +109,8 @@ export default function SatisfactionSurveyForm() {
         },
       });
       window.dispatchEvent(new Event("admision-progress-updated"));
-      setMessage("Gracias. Tu encuesta fue registrada correctamente.");
+      setIsCompleted(true);
+      router.push("/registration-complete");
     } catch (caughtError) {
       setError(
         caughtError instanceof ApiError
@@ -108,13 +124,27 @@ export default function SatisfactionSurveyForm() {
 
   return (
     <section className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-8 md:px-6">
-      <header className="mb-6 rounded-lg border border-[#711610]/20 bg-white p-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[#711610]">
+      <header className="mb-6 rounded-xl border border-[#711610]/10 bg-white p-6 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#711610]/80">
           Encuesta final
         </p>
-        <h1 className="mt-1 text-2xl font-semibold text-[#711610] md:text-3xl">
+
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#711610] md:text-3xl">
           Satisfacción del sistema
         </h1>
+
+        <div className="mt-5 flex items-start gap-3 rounded-lg border-l-4 border-[#E6D9AA] bg-[#E6D9AA]/20 px-4 py-3">
+          <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#711610]/10 text-xs font-bold text-[#711610]">
+            i
+          </div>
+
+          <p className="text-sm leading-6 text-[#711610]/90">
+            Califica cada aspecto del{" "}
+            <span className="font-semibold text-[#711610]">0 al 10</span> donde:{" "}
+            <span className="font-semibold text-[#711610]">0</span> significa pésimo y{" "}
+            <span className="font-semibold text-[#711610]">10</span> excelente.
+          </p>
+        </div>
       </header>
 
       {(error || message) && (
@@ -135,21 +165,9 @@ export default function SatisfactionSurveyForm() {
           <Rating label="Claridad de instrucciones" value={form.clarity_rating} onChange={(value) => setField("clarity_rating", value)} />
           <Rating label="Subida de archivos" value={form.upload_experience_rating} onChange={(value) => setField("upload_experience_rating", value)} />
           <Rating label="Soporte recibido" value={form.support_rating} onChange={(value) => setField("support_rating", value)} optional />
+          <Rating label="¿Qué tan probable es que recomiende este sistema? (0 a 10)" value={form.nps_score} onChange={(value) => setField("nps_score", value)} optional />
+
         </div>
-
-        <label className="block text-sm">
-          <span className="mb-1 block font-medium text-[#711610]">¿Qué tan probable es que recomiende este sistema? (0 a 10)</span>
-          <input
-            type="number"
-            min="0"
-            max="10"
-            value={form.nps_score}
-            onChange={(event) => setField("nps_score", event.target.value)}
-            className="form-input"
-            required
-          />
-        </label>
-
         <div className="grid gap-4 md:grid-cols-2">
           <TextArea label="Paso más difícil" value={form.hardest_step} onChange={(value) => setField("hardest_step", value)} />
           <TextArea label="Sugerencia de mejora" value={form.improvement_suggestion} onChange={(value) => setField("improvement_suggestion", value)} />
@@ -187,10 +205,10 @@ export default function SatisfactionSurveyForm() {
           </Link>
           <button
             type="submit"
-            disabled={!canSubmit || isSubmitting || Boolean(message)}
+            disabled={isSubmitting || isCompleted}
             className="rounded-md bg-[#711610] px-5 py-2 text-sm font-medium text-white hover:bg-[#5e120d] disabled:cursor-not-allowed disabled:bg-[#9A999D]"
           >
-            {isSubmitting ? "Guardando..." : "Enviar encuesta"}
+            {isCompleted ? "Encuesta enviada" : isSubmitting ? "Guardando..." : "Enviar encuesta"}
           </button>
         </footer>
       </form>
@@ -204,7 +222,7 @@ function Rating({ label, value, onChange, optional }: { label: string; value: st
       <span className="mb-1 block font-medium text-[#711610]">{label}</span>
       <select value={value} onChange={(event) => onChange(event.target.value)} className="form-input" required={!optional}>
         <option value="">{optional ? "No aplica" : "Seleccione"}</option>
-        {[1, 2, 3, 4, 5].map((rating) => (
+        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rating) => (
           <option key={rating} value={rating}>{rating}</option>
         ))}
       </select>

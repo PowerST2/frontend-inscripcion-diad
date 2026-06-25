@@ -19,6 +19,7 @@ export const FLOW_STEPS: FlowStep[] = [
   { key: "payments_complete", label: "Completar pago", href: "/payment" },
   { key: "data_confirmed", label: "Confirmar datos", href: "/resume" },
   { key: "satisfaction_survey_complete", label: "Responder encuesta final", href: "/satisfaction" },
+  { key: "satisfaction_survey_complete", label: "Inscripción culminada", href: "/registration-complete" },
 ];
 
 const STRICT_FLOW_STEPS = FLOW_STEPS.slice(0, 4);
@@ -73,7 +74,11 @@ export function canAccessFlowPath(pathname: string, progress: ApplicantProgress 
   }
 
   if (pathname === "/satisfaction") {
-    return Boolean(state.data_confirmed);
+    return Boolean(state.data_confirmed) && areConfirmationPrerequisitesComplete(progress);
+  }
+
+  if (pathname === "/registration-complete") {
+    return Boolean(state.satisfaction_survey_complete) && areConfirmationPrerequisitesComplete(progress);
   }
 
   if (strictFlowComplete) {

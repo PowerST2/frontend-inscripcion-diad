@@ -64,6 +64,7 @@ export type ApplicantProgress = {
   status: "success";
   progress: Record<string, boolean>;
   applicant: null | {
+    code?: string | null;
     document_number?: string | null;
     document_type?: { id: number; code: string; name: string } | null;
     paternal_surname?: string | null;
@@ -87,8 +88,20 @@ export type ApplicantProgress = {
     modality1_id?: number | null;
     faculties_id?: number | null;
     speciality1_id?: number | null;
-    family_members?: unknown[];
-    quiz?: unknown | null;
+    family_members?: FamilyMember[];
+    documents?: ApplicantUploadedDocument[];
+    quiz?: {
+      main_reason?: string | null;
+      specialty_preference?: string | null;
+      preparation_type?: string | null;
+      preparation_months?: number | null;
+      family_income?: string | number | null;
+      source?: string | null;
+      source_name?: string | null;
+      source_social_network?: string | null;
+      parents_teacher_career?: string | null;
+      sisfoh?: string | null;
+    } | null;
     data_confirmed?: boolean | null;
     has_vacancy_right?: boolean | null;
     photo_url?: string | null;
@@ -101,9 +114,15 @@ export type ApplicantProgress = {
     };
     sworn_declaration?: SwornDeclarationSubmission | null;
     modality?: { id: number; code: string; name: string } | null;
+    modality2?: { id: number; code: string; name: string } | null;
+    country_residence?: { id: number; code?: string | null; name: string } | null;
+    country_birth?: { id: number; code?: string | null; name: string } | null;
+    ubigeo_residence?: { id: number; department: string; province: string; district: string } | null;
+    ubigeo_birth?: { id: number; department: string; province: string; district: string } | null;
     faculty?: { id: number; name: string } | null;
     speciality1?: { id: number; code: string; name: string } | null;
     speciality2?: { id: number; code: string; name: string } | null;
+    university?: { id: number; code: string; name: string } | null;
     school?: { id: number; name: string; country_id?: number | null; ubigeo_id?: number | null } | null;
   };
 };

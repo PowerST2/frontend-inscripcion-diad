@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
-import { FaCheckCircle, FaClock, FaDownload, FaExclamationTriangle, FaFileUpload } from "react-icons/fa";
+import { FaArrowRight, FaCheckCircle, FaClock, FaDownload, FaExclamationTriangle, FaFileUpload } from "react-icons/fa";
 import { ApiError } from "@/lib/api";
 import { getStoredAuthToken } from "@/lib/auth";
 import {
@@ -50,7 +50,11 @@ export default function SwornDeclarationForm() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!token || !selectedFile) return;
+    if (!token) return;
+    if (!selectedFile) {
+      setError("Seleccione la declaración jurada firmada antes de continuar.");
+      return;
+    }
 
     if (selectedFile.size === 0) {
       setError("El archivo seleccionado esta vacio.");
@@ -139,14 +143,21 @@ export default function SwornDeclarationForm() {
 
           <SubmissionStatus submission={submission} />
 
+          <div className="rounded-md border border-[#E6D9AA] bg-[#E6D9AA]/20 px-4 py-3 text-sm leading-6 text-[#711610]">
+            Descargue o revise el documento base, complételo y suba aquí la declaración jurada firmada.
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
-            <label className="block rounded-lg border border-dashed border-[#9A999D]/60 bg-[#E6D9AA]/10 px-4 py-5 text-center text-sm text-[#711610]">
+            <label className="block cursor-pointer rounded-lg border border-dashed border-[#9A999D]/60 bg-[#E6D9AA]/10 px-4 py-5 text-center text-sm text-[#711610] transition hover:border-[#711610] hover:bg-[#E6D9AA]/25">
               <FaFileUpload className="mx-auto mb-2 h-6 w-6" />
               <span className="block font-semibold">
                 {selectedFile ? selectedFile.name : "Seleccionar declaración jurada"}
               </span>
               <span className="mt-1 block text-xs text-[#9A999D]">
                 Formatos: JPG, JPEG, PNG o PDF. Máximo 5 MB.
+              </span>
+              <span className="mt-3 block rounded-md bg-white/80 px-4 py-3 font-semibold text-[#711610]">
+                Haz clic en cualquier parte de este cuadro para seleccionar el archivo.
               </span>
               <input
                 type="file"
@@ -216,8 +227,21 @@ function TemplatePreview({ template }: { template: SwornDeclarationTemplate }) {
 function SubmissionStatus({ submission }: { submission: SwornDeclarationSubmission | null }) {
   if (!submission) {
     return (
-      <div className="rounded-md border border-[#9A999D]/30 bg-[#E6D9AA]/15 px-4 py-3 text-sm text-[#711610]">
-        Aún no ha enviado una declaración jurada.
+      <div className="rounded-xl border-2 border-[#E6D9AA] bg-[#E6D9AA]/20 p-5 text-[#711610] shadow-sm">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-xl shadow-sm">
+            <FaFileUpload />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#9A999D]">
+              Estado de la declaración jurada
+            </p>
+            <h3 className="mt-1 text-xl font-bold">Pendiente de envío</h3>
+            <p className="mt-2 text-sm leading-6">
+              Aún no ha enviado su declaración jurada. Descargue la plantilla, complétela y suba el archivo firmado.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -225,34 +249,85 @@ function SubmissionStatus({ submission }: { submission: SwornDeclarationSubmissi
   const status = submission.status;
   const isRejected = status === "rejected";
   const isReviewed = status === "reviewed";
+  const statusStyles = isRejected
+    ? {
+        wrapper: "border-red-300 bg-red-50 text-red-900",
+        icon: "bg-red-100 text-red-700",
+        badge: "bg-red-100 text-red-800",
+        title: "Observada",
+        description:
+          "La declaración jurada fue observada. Revise el motivo, corrija el documento y vuelva a subirlo.",
+        iconNode: <FaExclamationTriangle />,
+      }
+    : isReviewed
+      ? {
+          wrapper: "border-green-300 bg-green-50 text-green-900",
+          icon: "bg-green-100 text-green-700",
+          badge: "bg-green-100 text-green-800",
+          title: "Revisada y aprobada",
+          description:
+            "La declaración jurada ya fue revisada por admisión. Puede continuar con el siguiente paso.",
+          iconNode: <FaCheckCircle />,
+        }
+      : {
+          wrapper: "border-amber-300 bg-amber-50 text-amber-900",
+          icon: "bg-amber-100 text-amber-700",
+          badge: "bg-amber-100 text-amber-800",
+          title: "Pendiente de revisión",
+          description:
+            "El archivo fue enviado correctamente y está esperando revisión administrativa.",
+          iconNode: <FaClock />,
+        };
 
   return (
     <div
-      className={`rounded-md border px-4 py-3 text-sm ${
-        isRejected
-          ? "border-red-200 bg-red-50 text-red-800"
-          : isReviewed
-            ? "border-green-200 bg-green-50 text-green-800"
-            : "border-amber-200 bg-amber-50 text-amber-800"
-      }`}
+      className={`rounded-xl border-2 p-5 shadow-sm ${statusStyles.wrapper}`}
     >
-      <div className="flex items-center gap-2 font-semibold">
-        {isRejected ? <FaExclamationTriangle /> : isReviewed ? <FaCheckCircle /> : <FaClock />}
-        {isRejected ? "Observada" : isReviewed ? "Revisada" : "Pendiente de revisión"}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+        <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-2xl ${statusStyles.icon}`}>
+          {statusStyles.iconNode}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#9A999D]">
+              Estado de la declaración jurada
+            </p>
+            <span className={`rounded-full px-3 py-1 text-xs font-bold ${statusStyles.badge}`}>
+              {statusStyles.title}
+            </span>
+          </div>
+          <h3 className="mt-2 text-2xl font-bold">{statusStyles.title}</h3>
+          <p className="mt-2 text-sm leading-6">{statusStyles.description}</p>
+
+          {submission.rejection_reason && (
+            <p className="mt-3 rounded-md border border-red-200 bg-white/70 px-3 py-2 text-sm leading-6 text-red-800">
+              <span className="font-semibold">Motivo:</span> {submission.rejection_reason}
+            </p>
+          )}
+
+          <div className="mt-4 flex flex-wrap gap-3">
+            {submission.document_url && (
+              <a
+                href={submission.document_url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-md border border-current px-4 py-2 text-sm font-semibold hover:bg-white/60"
+              >
+                Ver archivo enviado
+              </a>
+            )}
+            {isReviewed && (
+              <Link
+                href="/photo"
+                className="inline-flex items-center gap-2 rounded-md bg-[#711610] px-4 py-2 text-sm font-semibold text-white hover:bg-[#5e120d]"
+              >
+                Continuar a foto
+                <FaArrowRight className="text-xs" />
+              </Link>
+            )}
+          </div>
+        </div>
       </div>
-      {submission.rejection_reason && (
-        <p className="mt-2 leading-6">Motivo: {submission.rejection_reason}</p>
-      )}
-      {submission.document_url && (
-        <a
-          href={submission.document_url}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-3 inline-flex items-center gap-2 font-semibold underline"
-        >
-          Ver archivo enviado
-        </a>
-      )}
     </div>
   );
 }

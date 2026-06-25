@@ -500,6 +500,7 @@ export default function PersonalDataWizard({ initialStep = 1 }: PersonalDataWiza
     const localErrors = validatePersonalData();
     if (Object.keys(localErrors).length > 0) {
       setFieldErrors(localErrors);
+      setError("Revise los campos marcados. Falta completar o corregir información obligatoria.");
       setIsSubmitting(false);
       return;
     }
@@ -525,7 +526,11 @@ export default function PersonalDataWizard({ initialStep = 1 }: PersonalDataWiza
 
   const handlePhotoSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!token || !photo) return;
+    if (!token) return;
+    if (!photo) {
+      setError("Seleccione la foto del postulante antes de continuar.");
+      return;
+    }
 
     setError(null);
     setMessage(null);
@@ -549,7 +554,11 @@ export default function PersonalDataWizard({ initialStep = 1 }: PersonalDataWiza
 
   const handleIdentityDocumentSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!token || !identityDocument) return;
+    if (!token) return;
+    if (!identityDocument) {
+      setError("Seleccione el documento de identidad antes de continuar.");
+      return;
+    }
 
     setError(null);
     setMessage(null);
@@ -877,14 +886,24 @@ export default function PersonalDataWizard({ initialStep = 1 }: PersonalDataWiza
 
       {step === 2 && (
         <form onSubmit={handlePhotoSubmit} className="rounded-lg border border-[#9A999D]/30 bg-white p-5">
-          <div className="rounded-lg border border-dashed border-[#9A999D] bg-[#E6D9AA]/20 p-6 text-center text-sm text-[#711610]">
+          <div className="mb-4 rounded-md border border-[#E6D9AA] bg-[#E6D9AA]/20 px-4 py-3 text-sm leading-6 text-[#711610]">
+            <p className="font-semibold">Indicaciones para la foto</p>
+            <p>
+              Debe tener fondo blanco, mostrar al postulante desde los hombros hacia arriba,
+              sin gafas, sin gorros y sin cabello cubriendo el rostro.
+            </p>
+          </div>
+          <label className="block cursor-pointer rounded-lg border border-dashed border-[#9A999D] bg-[#E6D9AA]/20 p-6 text-center text-sm text-[#711610] transition hover:border-[#711610] hover:bg-[#E6D9AA]/30">
             <p className="font-medium">Cargar foto del postulante</p>
             <p className="mt-1 text-[#9A999D]">Formatos permitidos: JPG, JPEG o PNG. Maximo 2 MB.</p>
+            <p className="mt-3 rounded-md bg-white/80 px-4 py-3 font-semibold text-[#711610]">
+              Haz clic en cualquier parte de este cuadro para seleccionar la foto.
+            </p>
             <input
               type="file"
               accept="image/jpeg,image/jpg,image/png"
               onChange={(event) => setPhoto(event.target.files?.[0] ?? null)}
-              className="mx-auto mt-4 block w-full max-w-xs text-sm"
+              className="sr-only"
               required
             />
 
@@ -926,7 +945,7 @@ export default function PersonalDataWizard({ initialStep = 1 }: PersonalDataWiza
                 </div>
               </div>
             )}
-          </div>
+          </label>
 
           <WizardFooter
             backHref="/sworn-affidavit"
@@ -942,9 +961,19 @@ export default function PersonalDataWizard({ initialStep = 1 }: PersonalDataWiza
           onSubmit={handleIdentityDocumentSubmit}
           className="rounded-lg border border-[#9A999D]/30 bg-white p-5"
         >
-          <div className="rounded-lg border border-dashed border-[#9A999D] bg-[#E6D9AA]/20 p-6 text-center text-sm text-[#711610]">
+          <div className="mb-4 rounded-md border border-[#E6D9AA] bg-[#E6D9AA]/20 px-4 py-3 text-sm leading-6 text-[#711610]">
+            <p className="font-semibold">Indicaciones para el documento de identidad</p>
+            <p>
+              Para DNI, sube la parte delantera y posterior en un solo archivo PDF. Si usas
+              carné de extranjería o pasaporte, sube el documento completo en un solo archivo.
+            </p>
+          </div>
+          <label className="block cursor-pointer rounded-lg border border-dashed border-[#9A999D] bg-[#E6D9AA]/20 p-6 text-center text-sm text-[#711610] transition hover:border-[#711610] hover:bg-[#E6D9AA]/30">
             <p className="font-medium">Cargar DNI, carne de extranjeria o pasaporte del postulante</p>
             <p className="mt-1 text-[#9A999D]">Formatos permitidos: JPG, JPEG, PNG o PDF. Maximo 5 MB.</p>
+            <p className="mt-3 rounded-md bg-white/80 px-4 py-3 font-semibold text-[#711610]">
+              Haz clic en cualquier parte de este cuadro para seleccionar el archivo.
+            </p>
             <input
               type="file"
               accept="image/jpeg,image/jpg,image/png,application/pdf"
@@ -952,7 +981,7 @@ export default function PersonalDataWizard({ initialStep = 1 }: PersonalDataWiza
                 setIdentityDocument(event.target.files?.[0] ?? null);
                 setError(null);
               }}
-              className="mx-auto mt-4 block w-full max-w-xs text-sm"
+              className="sr-only"
               required={!identityDocumentComplete}
             />
 
@@ -976,7 +1005,7 @@ export default function PersonalDataWizard({ initialStep = 1 }: PersonalDataWiza
                 Seleccione su documento de identidad para habilitar el boton de continuar.
               </p>
             )}
-          </div>
+          </label>
 
           <WizardFooter
             backHref="/personal-data"
