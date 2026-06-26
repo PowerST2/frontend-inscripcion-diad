@@ -9,6 +9,7 @@ import { ApiError } from "@/lib/api";
 import { getStoredAuthToken } from "@/lib/auth";
 import { ApplicantProgress, ApplicantProspectus, getApplicantProgress, getApplicantProspectus } from "@/lib/applicant";
 import { areConfirmationPrerequisitesComplete, getNextFlowStep } from "@/lib/admission-flow";
+import { isSemiScholarshipActivityOpen } from "@/lib/schedule-activities";
 
 type StepStatus = "done" | "pending" | "admin" | "rejected" | "locked";
 
@@ -32,6 +33,7 @@ export default function ProfileDashboard() {
   const router = useRouter();
   const [progress, setProgress] = useState<ApplicantProgress | null>(null);
   const [prospectus, setProspectus] = useState<ApplicantProspectus | null>(null);
+  const [isSemiScholarshipOpen, setIsSemiScholarshipOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,10 +47,12 @@ export default function ProfileDashboard() {
     Promise.all([
       getApplicantProgress(token),
       getApplicantProspectus(token),
+      isSemiScholarshipActivityOpen(),
     ])
-      .then(([progressResponse, prospectusResponse]) => {
+      .then(([progressResponse, prospectusResponse, semiScholarshipOpen]) => {
         setProgress(progressResponse);
         setProspectus(prospectusResponse.data);
+        setIsSemiScholarshipOpen(semiScholarshipOpen);
       })
       .catch((caughtError) => {
         setError(
@@ -174,6 +178,8 @@ export default function ProfileDashboard() {
 
       <ProspectusDownloadCard prospectus={prospectus} />
 
+      {isSemiScholarshipOpen && <SemiScholarshipCard />}
+
       <section className="rounded-lg border border-[#9A999D]/30 bg-white p-5">
         <div className="mb-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-[#9A999D]">
@@ -190,6 +196,32 @@ export default function ProfileDashboard() {
           ))}
         </div>
       </section>
+    </section>
+  );
+}
+
+function SemiScholarshipCard() {
+  return (
+    <section className="overflow-hidden rounded-3xl border border-[#E6D9AA] bg-[#fffdf8] shadow-sm">
+      <div className="flex flex-col gap-5 p-6 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#711610]">
+            Semibecas abiertas
+          </p>
+          <h2 className="mt-2 text-2xl font-bold text-[#711610]">
+            Puedes solicitar una semibeca
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#711610]/75">
+            Si necesitas apoyo económico, inicia tu solicitud y sube la documentación requerida para evaluación social.
+          </p>
+        </div>
+        <Link
+          href="/semi-scholarship"
+          className="inline-flex justify-center rounded-full bg-[#711610] px-6 py-3 text-sm font-semibold text-white hover:bg-[#5e120d]"
+        >
+          Solicitar semibeca
+        </Link>
+      </div>
     </section>
   );
 }
@@ -353,29 +385,38 @@ function buildTimeline(progress: ApplicantProgress | null): TimelineStep[] {
 }
 
 function statusClass(status: StepStatus) {
-  if (status === "done") return "border-green-200 bg-green-50 text-green-800";
-  if (status === "admin") return "border-amber-200 bg-amber-50 text-amber-800";
-  if (status === "rejected") return "border-red-200 bg-red-50 text-red-800";
-  if (status === "locked") return "border-zinc-300 bg-zinc-900 text-zinc-100";
-  return "border-[#9A999D]/30 bg-white text-[#711610]";
+  if (status === "done") return "border-[#711610]/20 border-l-[#711610]";
+  if (status === "admin") return "border-[#E6D9AA] border-l-[#C99118]";
+  if (status === "rejected") return "border-red-200 border-l-red-500";
+  if (status === "locked") return "border-zinc-300 border-l-zinc-500 bg-zinc-50";
+  return "border-[#9A999D]/25 border-l-[#9A999D]";
+}
+
+function statusTone(status: StepStatus) {
+  if (status === "done") return "bg-[#711610]/10 text-[#711610]";
+  if (status === "admin") return "bg-[#E6D9AA]/45 text-[#711610]";
+  if (status === "rejected") return "bg-red-100 text-red-700";
+  if (status === "locked") return "bg-zinc-200 text-zinc-700";
+  return "bg-[#9A999D]/10 text-[#711610]";
 }
 
 function TimelineCard({ step, stepNumber }: { step: TimelineStep; stepNumber: number }) {
+  const tone = statusTone(step.status);
   const content = (
     <>
       <div className="flex items-center justify-between gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm font-bold text-[#711610] shadow-sm">
+        <div className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold ${tone}`}>
           {step.status === "done" ? <FaCheck /> : step.status === "rejected" ? <FaExclamationTriangle /> : <FaClock />}
         </div>
-        <span className="rounded-full bg-white/80 px-2 py-1 text-xs font-semibold text-[#711610]">
+        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${tone}`}>
           {statusLabels[step.status]}
         </span>
       </div>
-      <p className="mt-4 text-xs font-semibold uppercase tracking-wide opacity-70">
+      <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-[#9A999D]">
         Paso {stepNumber}
       </p>
-      <h3 className="mt-1 text-base font-semibold">{step.label}</h3>
-      <p className="mt-2 text-sm leading-5 opacity-80">{step.description}</p>
+      <h3 className="mt-1 text-base font-semibold text-[#711610]">{step.label}</h3>
+      <p className="mt-2 text-sm leading-5 text-[#711610]/75">{step.description}</p>
       {step.lockReason && (
         <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-black/75 px-4 text-center text-sm font-semibold text-white opacity-0 transition group-hover:opacity-100">
           {step.lockReason}
@@ -384,7 +425,7 @@ function TimelineCard({ step, stepNumber }: { step: TimelineStep; stepNumber: nu
     </>
   );
 
-  const className = `group relative rounded-lg border p-4 transition ${statusClass(step.status)}`;
+  const className = `group relative rounded-3xl border border-l-4 bg-[#fffdf8] p-4 shadow-sm transition ${statusClass(step.status)}`;
 
   if (step.status === "locked") {
     return (

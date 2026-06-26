@@ -198,6 +198,13 @@ export type ApplicantUploadedDocument = {
   created_at: string | null;
 };
 
+export type SemibecaDocumentRequirement = {
+  id: number;
+  document_name: string;
+};
+
+export type SemibecaUploadedDocument = ApplicantUploadedDocument;
+
 export type FamilyMemberStatus = "available" | "deceased" | "not_present";
 
 export type FamilyMemberType = "father" | "mother" | "guardian";
@@ -524,6 +531,30 @@ export function uploadApplicantDocument(token: string, documentName: string, doc
     message: string;
     document: ApplicantUploadedDocument;
   }>("/applicants/documents", {
+    method: "POST",
+    body: formData,
+    token,
+  });
+}
+
+export function getSemibecaDocuments(token: string) {
+  return apiRequest<{
+    status: "success";
+    requirements: SemibecaDocumentRequirement[];
+    documents: SemibecaUploadedDocument[];
+  }>("/applicants/semibeca-documents", { token });
+}
+
+export function uploadSemibecaDocument(token: string, documentName: string, document: File) {
+  const formData = new FormData();
+  formData.append("document_name", documentName);
+  formData.append("document", document);
+
+  return apiRequest<{
+    status: "success";
+    message: string;
+    document: SemibecaUploadedDocument;
+  }>("/applicants/semibeca-documents", {
     method: "POST",
     body: formData,
     token,

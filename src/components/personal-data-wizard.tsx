@@ -797,7 +797,7 @@ export default function PersonalDataWizard({ initialStep = 1 }: PersonalDataWiza
               />
             </Field>
 
-            <Field label="Anio inicio secundaria" error={firstFieldError("secondaryStartYear")}>
+            <Field label="Año inicio secundaria" error={firstFieldError("secondaryStartYear")}>
               <input
                 type="number"
                 value={form.secondaryStartYear}
@@ -810,7 +810,7 @@ export default function PersonalDataWizard({ initialStep = 1 }: PersonalDataWiza
               />
             </Field>
 
-            <Field label="Anio fin secundaria" error={firstFieldError("secondaryEndYear")}>
+            <Field label="Año fin secundaria" error={firstFieldError("secondaryEndYear")}>
               <input
                 type="number"
                 value={form.secondaryEndYear}

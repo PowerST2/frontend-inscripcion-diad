@@ -12,14 +12,12 @@ import { getSiteLabels, HEADER_PROCESS_LABEL } from "@/lib/site";
 import { isRegistrationActivityOpen } from "@/lib/schedule-activities";
 
 const PUBLIC_PATHS = new Set(["/", "/login-registro"]);
-const THEME_STORAGE_KEY = "admision_theme";
 
 export default function AuthGate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const [progress, setProgress] = useState<ApplicantProgress | null>(null);
   const [isProgressRefreshing, setIsProgressRefreshing] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -38,13 +36,11 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     const storedToken = getStoredAuthToken();
     const storedUser = getStoredAuthUser();
-    const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
-    const shouldUseDarkMode = storedTheme === "dark";
 
     setToken(storedToken);
     setUser(storedUser);
-    setIsDarkMode(shouldUseDarkMode);
-    document.documentElement.classList.toggle("theme-dark", shouldUseDarkMode);
+    localStorage.removeItem("admision_theme");
+    document.documentElement.classList.remove("theme-dark");
     setReady(true);
 
     if (!storedToken && !isPublicPath) {
@@ -98,15 +94,6 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const notifications = useMemo(() => buildNotifications(progress), [progress]);
   const notificationCount = notifications.pending.length + notifications.admin.length;
 
-  const toggleTheme = () => {
-    setIsDarkMode((current) => {
-      const next = !current;
-      localStorage.setItem(THEME_STORAGE_KEY, next ? "dark" : "light");
-      document.documentElement.classList.toggle("theme-dark", next);
-      return next;
-    });
-  };
-
   const handleLogout = async () => {
     if (token) {
       try {
@@ -147,14 +134,6 @@ export default function AuthGate({ children }: { children: ReactNode }) {
           </Link>
 
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="rounded-md border border-[#711610] px-3 py-2 text-sm font-medium text-[#711610] hover:bg-[#711610]/10"
-            >
-              {isDarkMode ? "Claro" : "Oscuro"}
-            </button>
-
             {token ? (
               <>
               <div className="relative">

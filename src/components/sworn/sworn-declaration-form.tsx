@@ -129,6 +129,14 @@ export default function SwornDeclarationForm() {
           </div>
 
           <TemplatePreview template={template} />
+
+          <ol className="space-y-3 rounded-md border border-[#E6D9AA] bg-[#E6D9AA]/15 p-4 text-sm leading-6 text-[#711610]">
+            <li><strong>Paso 1.-</strong> Descarga la plantilla.</li>
+            <li><strong>Paso 2.-</strong> Imprime la declaración jurada.</li>
+            <li><strong>Paso 3.-</strong> Si eres menor de edad, pídele a tu apoderado que lo firme. Si eres mayor de edad, puedes firmarlo tú.</li>
+            <li><strong>Paso 4.-</strong> Escanea el documento completo y firmado.</li>
+            <li><strong>Paso 5.-</strong> Sube el documento en el cuadro de la derecha y continúa.</li>
+          </ol>
         </section>
 
         <section className="space-y-5 rounded-lg border border-[#9A999D]/30 bg-white p-5">
