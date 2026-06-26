@@ -78,7 +78,9 @@ export function canAccessFlowPath(pathname: string, progress: ApplicantProgress 
   }
 
   if (pathname === "/registration-complete") {
-    return Boolean(state.satisfaction_survey_complete) && areConfirmationPrerequisitesComplete(progress);
+    return Boolean(state.data_confirmed) &&
+      Boolean(state.satisfaction_survey_complete) &&
+      areConfirmationPrerequisitesComplete(progress);
   }
 
   if (strictFlowComplete) {

@@ -13,6 +13,7 @@ import {
   UbigeoDepartment,
   UbigeoDistrict,
   UbigeoProvince,
+  UniversityOption,
   getCountries,
   getDepartments,
   getDistricts,
@@ -20,6 +21,7 @@ import {
   getFaculties,
   getModalities,
   getProvinces,
+  getUniversities,
   getUbigeo,
   saveModalityData,
   searchSchools,
@@ -115,10 +117,14 @@ export default function ModalityWizard() {
   const [provinces, setProvinces] = useState<UbigeoProvince[]>([]);
   const [districts, setDistricts] = useState<UbigeoDistrict[]>([]);
   const [schoolOptions, setSchoolOptions] = useState<SchoolOption[]>([]);
+  const [universities, setUniversities] = useState<UniversityOption[]>([]);
   const [modalityId, setModalityId] = useState("");
   const [facultyId, setFacultyId] = useState("");
   const [speciality1Id, setSpeciality1Id] = useState("");
   const [speciality2Id, setSpeciality2Id] = useState("");
+  const [universityId, setUniversityId] = useState("");
+  const [universityManagement, setUniversityManagement] = useState("");
+  const [universityQuery, setUniversityQuery] = useState("");
   const [schoolCountryId, setSchoolCountryId] = useState("");
   const [schoolDepartmentCode, setSchoolDepartmentCode] = useState("");
   const [schoolProvinceCode, setSchoolProvinceCode] = useState("");
@@ -129,6 +135,7 @@ export default function ModalityWizard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalitiesLoading, setIsModalitiesLoading] = useState(false);
   const [isSchoolsLoading, setIsSchoolsLoading] = useState(false);
+  const [isUniversitiesLoading, setIsUniversitiesLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -149,6 +156,7 @@ export default function ModalityWizard() {
   );
 
   const modalityGroups = useMemo(() => groupModalities(modalities), [modalities]);
+  const requiresUniversity = selectedModality ? !selectedModality.start_studies : false;
 
   const selectedSchoolCountry = useMemo(
     () => countries.find((country) => String(country.id) === schoolCountryId) ?? null,
@@ -166,8 +174,10 @@ export default function ModalityWizard() {
   const canSubmitAcademicData =
     !!facultyId &&
     !!speciality1Id &&
-    !!schoolCountryId &&
-    (schoolCountryIsPeru ? !!schoolDistrictId && !!schoolId : !!foreignSchoolName.trim());
+    (requiresUniversity
+      ? !!universityId
+      : !!schoolCountryId &&
+        (schoolCountryIsPeru ? !!schoolDistrictId && !!schoolId : !!foreignSchoolName.trim()));
 
   useEffect(() => {
     const storedToken = getStoredAuthToken();
@@ -209,6 +219,12 @@ export default function ModalityWizard() {
 
         if (applicant?.speciality2?.id) {
           setSpeciality2Id(String(applicant.speciality2.id));
+        }
+
+        if (applicant?.university?.id) {
+          setUniversityId(String(applicant.university.id));
+          setUniversityQuery(applicant.university.name);
+          setUniversities([applicant.university]);
         }
 
         if (applicant?.school) {
@@ -278,6 +294,19 @@ export default function ModalityWizard() {
   }, [schoolCountryIsPeru, schoolDistrictId, schoolQuery]);
 
   useEffect(() => {
+    if (!requiresUniversity || !universityManagement || universityQuery.trim().length < 2) {
+      if (!universityId) setUniversities([]);
+      return;
+    }
+
+    setIsUniversitiesLoading(true);
+    getUniversities(universityManagement, universityQuery.trim())
+      .then((response) => setUniversities(response.universities))
+      .catch(() => setUniversities([]))
+      .finally(() => setIsUniversitiesLoading(false));
+  }, [requiresUniversity, universityManagement, universityQuery, universityId]);
+
+  useEffect(() => {
     if (!vacancyRight) {
       setModalities([]);
       return;
@@ -308,6 +337,10 @@ export default function ModalityWizard() {
     setFacultyId("");
     setSpeciality1Id("");
     setSpeciality2Id("");
+    setUniversityId("");
+    setUniversityManagement("");
+    setUniversityQuery("");
+    setUniversities([]);
     resetSchoolSelection(false);
     setError(null);
     setMessage(null);
@@ -318,6 +351,10 @@ export default function ModalityWizard() {
     setFacultyId("");
     setSpeciality1Id("");
     setSpeciality2Id("");
+    setUniversityId("");
+    setUniversityManagement("");
+    setUniversityQuery("");
+    setUniversities([]);
     resetSchoolSelection(false);
     setError(null);
     setMessage(null);
@@ -411,14 +448,15 @@ export default function ModalityWizard() {
         faculty_id: Number(facultyId),
         speciality1_id: Number(speciality1Id),
         speciality2_id: speciality2Id ? Number(speciality2Id) : null,
-        school_country_id: Number(schoolCountryId),
-        school_ubigeo_id: schoolCountryIsPeru ? Number(schoolDistrictId) : null,
-        school_id: schoolCountryIsPeru ? Number(schoolId) : null,
-        school_name: schoolCountryIsPeru ? null : foreignSchoolName.trim(),
+        university_id: requiresUniversity ? Number(universityId) : null,
+        school_country_id: requiresUniversity ? null : Number(schoolCountryId),
+        school_ubigeo_id: !requiresUniversity && schoolCountryIsPeru ? Number(schoolDistrictId) : null,
+        school_id: !requiresUniversity && schoolCountryIsPeru ? Number(schoolId) : null,
+        school_name: !requiresUniversity && !schoolCountryIsPeru ? foreignSchoolName.trim() : null,
       });
 
       window.dispatchEvent(new Event("admision-progress-updated"));
-      setMessage("Modalidad, facultad, carrera y colegio guardados correctamente.");
+      setMessage("Modalidad, facultad y procedencia guardadas correctamente.");
       router.push("/documents");
     } catch (caughtError) {
       setError(
@@ -638,7 +676,83 @@ export default function ModalityWizard() {
             )}
           </section>
 
-          <section className="space-y-5 rounded-lg border border-[#9A999D]/30 bg-white p-5">
+          {requiresUniversity && (
+            <section className="space-y-5 rounded-lg border border-[#9A999D]/30 bg-white p-5">
+              <div className="max-w-3xl">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#9A999D]">
+                  Universidad de procedencia
+                </p>
+                <h2 className="mt-1 text-xl font-semibold text-[#711610]">
+                  Donde realizo sus estudios universitarios
+                </h2>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="block text-sm">
+                  <span className="mb-1 block font-medium text-[#711610]">Tipo de universidad</span>
+                  <select
+                    value={universityManagement}
+                    onChange={(event) => {
+                      setUniversityManagement(event.target.value);
+                      setUniversityId("");
+                      setUniversityQuery("");
+                      setUniversities([]);
+                    }}
+                    className="form-input"
+                    required
+                  >
+                    <option value="">Seleccione tipo</option>
+                    <option value="publica">Pública</option>
+                    <option value="privada">Privada</option>
+                  </select>
+                </label>
+
+                <label className="block text-sm">
+                  <span className="mb-1 block font-medium text-[#711610]">Buscar universidad</span>
+                  <input
+                    value={universityQuery}
+                    onChange={(event) => {
+                      setUniversityQuery(event.target.value);
+                      setUniversityId("");
+                    }}
+                    className="form-input"
+                    disabled={!universityManagement}
+                    placeholder="Escriba al menos 2 letras"
+                    required
+                  />
+                </label>
+              </div>
+
+              <label className="block text-sm">
+                <span className="mb-1 block font-medium text-[#711610]">Universidad</span>
+                <select
+                  value={universityId}
+                  onChange={(event) => {
+                    const selected = universities.find(
+                      (university) => String(university.id) === event.target.value
+                    );
+                    setUniversityId(event.target.value);
+                    if (selected) setUniversityQuery(selected.name);
+                  }}
+                  className="form-input"
+                  disabled={!universityManagement || universityQuery.trim().length < 2 || isUniversitiesLoading}
+                  required
+                >
+                  <option value="">
+                    {isUniversitiesLoading ? "Buscando universidades..." : "Seleccione universidad"}
+                  </option>
+                  {universities.map((university) => (
+                    <option key={university.id} value={university.id}>
+                      {university.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </section>
+          )}
+
+          {!requiresUniversity && (
+            <section className="space-y-5 rounded-lg border border-[#9A999D]/30 bg-white p-5">
             <div className="max-w-3xl">
               <p className="text-xs font-semibold uppercase tracking-wide text-[#9A999D]">
                 Colegio de procedencia
@@ -781,7 +895,8 @@ export default function ModalityWizard() {
                 />
               </label>
             )}
-          </section>
+            </section>
+          )}
 
           <footer className="flex flex-wrap items-center justify-between gap-3">
             <button

@@ -29,6 +29,13 @@ export type SchoolOption = {
   ubigeo_id?: number | null;
 };
 
+export type UniversityOption = {
+  id: number;
+  code: string;
+  name: string;
+  management?: string | null;
+};
+
 export type UbigeoDetail = {
   id: number;
   code: string;
@@ -395,6 +402,16 @@ export function getFaculties() {
   return apiRequest<{ status: "success"; faculties: AdmissionFaculty[] }>("/faculties");
 }
 
+export function getUniversities(management?: string, query?: string) {
+  const params = new URLSearchParams();
+  if (management) params.set("management", management);
+  if (query) params.set("q", query);
+
+  return apiRequest<{ status: "success"; universities: UniversityOption[] }>(
+    `/universities${params.toString() ? `?${params.toString()}` : ""}`
+  );
+}
+
 export function getQuizMainReasons() {
   return apiRequest<{ data: QuizCatalogOption[] }>("/quiz/main-reasons");
 }
@@ -441,7 +458,7 @@ export type ModalityDataPayload = {
   speciality2_id: number | null;
   university_id?: number | null;
   school_id?: number | null;
-  school_country_id: number;
+  school_country_id?: number | null;
   school_ubigeo_id?: number | null;
   school_name?: string | null;
 };
