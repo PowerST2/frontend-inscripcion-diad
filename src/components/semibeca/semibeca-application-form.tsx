@@ -36,6 +36,7 @@ function StatusIcon({ status }: { status?: string }) {
 export default function SemibecaApplicationForm() {
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
+  const [mode, setMode] = useState<"regular" | "sisfoh" | null>(null);
   const [requirements, setRequirements] = useState<SemibecaDocumentRequirement[]>([]);
   const [documents, setDocuments] = useState<SemibecaUploadedDocument[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
@@ -61,7 +62,15 @@ export default function SemibecaApplicationForm() {
     }
 
     setToken(storedToken);
-    getSemibecaDocuments(storedToken)
+
+    if (!mode) {
+      setRequirements([]);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    getSemibecaDocuments(storedToken, mode)
       .then((response) => {
         setRequirements(response.requirements);
         setDocuments(response.documents);
@@ -74,7 +83,7 @@ export default function SemibecaApplicationForm() {
         );
       })
       .finally(() => setIsLoading(false));
-  }, [router]);
+  }, [mode, router]);
 
   const handleFileChange = (documentName: string, event: ChangeEvent<HTMLInputElement>) => {
     setSelectedFiles((current) => ({
@@ -136,10 +145,56 @@ export default function SemibecaApplicationForm() {
           Sube los documentos solicitados para que la asistenta social pueda revisarlos.
           Los archivos pueden ser PDF, JPG o PNG, con un peso máximo de 5 MB.
         </p>
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => {
+              setMode("regular");
+              setError(null);
+              setMessage(null);
+            }}
+            className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition ${
+              mode === "regular"
+                ? "border-[#711610] bg-[#711610] text-white"
+                : "border-[#711610]/30 bg-white text-[#711610] hover:border-[#711610]"
+            }`}
+          >
+            No tengo SISFOH de pobre o pobre extremo
+            <span className="mt-1 block text-xs font-normal opacity-80">
+              Deberás subir los 5 documentos socioeconómicos.
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode("sisfoh");
+              setError(null);
+              setMessage(null);
+            }}
+            className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition ${
+              mode === "sisfoh"
+                ? "border-[#711610] bg-[#711610] text-white"
+                : "border-[#711610]/30 bg-white text-[#711610] hover:border-[#711610]"
+            }`}
+          >
+            Tengo SISFOH de pobre o pobre extremo
+            <span className="mt-1 block text-xs font-normal opacity-80">
+              Solo deberás subir tu constancia SISFOH vigente.
+            </span>
+          </button>
+        </div>
         <div className="mt-5 flex flex-wrap items-center gap-3">
           <span className="rounded-full bg-[#711610] px-4 py-2 text-sm font-semibold text-white">
             {uploadedCount} de {requirements.length} documentos cargados
           </span>
+          <a
+            href="https://focalizacion.sisfoh.gob.pe/ConsultaCSE/"
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-full border border-[#711610] px-4 py-2 text-sm font-semibold text-[#711610] transition hover:bg-[#711610] hover:text-white"
+          >
+            Consultar SISFOH
+          </a>
           <Link
             href="/my-profile"
             className="rounded-full border border-[#711610] px-4 py-2 text-sm font-semibold text-[#711610] transition hover:bg-[#711610] hover:text-white"
@@ -161,16 +216,26 @@ export default function SemibecaApplicationForm() {
         </div>
       )}
 
-      <section className="mb-5 rounded-2xl border border-[#E6D9AA] bg-[#E6D9AA]/20 p-5 text-sm leading-6 text-[#711610]">
-        <p className="font-semibold">Formatos internos del sistema</p>
-        <p>
-          Para ficha socioeconómica, composición familiar e ingresos económicos, y egresos
-          económicos, descarga y completa los formatos indicados por admisión cuando estén
-          disponibles. Luego escanéalos y súbelos aquí.
-        </p>
-      </section>
+      {!mode && (
+        <section className="rounded-2xl border border-[#E6D9AA] bg-white p-6 text-center text-[#711610] shadow-sm">
+          <p className="text-lg font-bold">Seleccione una opción para continuar</p>
+          <p className="mt-2 text-sm text-[#711610]/75">
+            Los documentos requeridos aparecerán según tenga o no tenga clasificación SISFOH.
+          </p>
+        </section>
+      )}
 
-      <div className="space-y-4">
+      {mode === "regular" && (
+        <section className="mb-5 rounded-2xl border border-[#E6D9AA] bg-[#E6D9AA]/20 p-5 text-sm leading-6 text-[#711610]">
+          <p className="font-semibold">Importante</p>
+          <p>
+            Si el padre, madre o apoderado no genera recibo por honorarios o boleta de pago,
+            debe llenar la Declaración Jurada Simple de Ingresos y subirla en el documento de ingresos.
+          </p>
+        </section>
+      )}
+
+      {mode && <div className="space-y-4">
         {requirements.map((requirement) => {
           const uploaded = documentsByName.get(requirement.document_name);
           const selectedFile = selectedFiles[requirement.document_name] ?? null;
@@ -251,7 +316,7 @@ export default function SemibecaApplicationForm() {
             </article>
           );
         })}
-      </div>
+      </div>}
     </section>
   );
 }

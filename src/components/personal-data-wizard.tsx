@@ -511,7 +511,7 @@ export default function PersonalDataWizard({ initialStep = 1 }: PersonalDataWiza
       await saveApplicantPersonalData(token, buildPayload());
       window.dispatchEvent(new Event("admision-progress-updated"));
       setMessage("Datos personales guardados correctamente.");
-      router.push("/identity-document");
+      router.push("/my-profile");
     } catch (caughtError) {
       if (caughtError instanceof ApiError) {
         setError(caughtError.message);

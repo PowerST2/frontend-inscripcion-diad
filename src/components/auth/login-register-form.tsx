@@ -54,7 +54,7 @@ export default function LoginRegisterForm() {
 
       persistAuthSession(response);
 
-      router.push("/my-profile");
+      router.push(isRegister ? "/pre-inscription-affidavit" : "/my-profile");
 
       router.refresh();
     } catch (caughtError) {
@@ -92,7 +92,7 @@ export default function LoginRegisterForm() {
             <button
               type="button"
               onClick={() => setMode("login")}
-              className={`rounded px-3 py-2 text-sm font-semibold ${
+              className={`cursor-pointer rounded px-3 py-2 text-sm font-semibold transition hover:bg-white hover:text-[#711610] hover:shadow-sm ${
                 !isRegister ? "bg-white text-[#711610] shadow-sm" : "text-[#711610]/70"
               }`}
             >
@@ -101,7 +101,7 @@ export default function LoginRegisterForm() {
             <button
               type="button"
               onClick={() => setMode("register")}
-              className={`rounded px-3 py-2 text-sm font-semibold ${
+              className={`cursor-pointer rounded px-3 py-2 text-sm font-semibold transition hover:bg-white hover:text-[#711610] hover:shadow-sm ${
                 isRegister ? "bg-white text-[#711610] shadow-sm" : "text-[#711610]/70"
               }`}
             >

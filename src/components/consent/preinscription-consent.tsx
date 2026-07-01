@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api";
@@ -115,13 +114,7 @@ export default function PreinscriptionConsent() {
           </span>
         </label>
 
-        <footer className="flex flex-wrap items-center justify-between gap-3">
-          <Link
-            href="/my-profile"
-            className="rounded-md border border-[#711610] px-5 py-2 text-sm font-medium text-[#711610] hover:bg-[#711610]/10"
-          >
-            Regresar
-          </Link>
+        <footer className="flex flex-wrap items-center justify-end gap-3">
           <button
             type="button"
             onClick={submit}

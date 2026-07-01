@@ -537,12 +537,12 @@ export function uploadApplicantDocument(token: string, documentName: string, doc
   });
 }
 
-export function getSemibecaDocuments(token: string) {
+export function getSemibecaDocuments(token: string, mode: "regular" | "sisfoh" = "regular") {
   return apiRequest<{
     status: "success";
     requirements: SemibecaDocumentRequirement[];
     documents: SemibecaUploadedDocument[];
-  }>("/applicants/semibeca-documents", { token });
+  }>(`/applicants/semibeca-documents?mode=${mode}`, { token });
 }
 
 export function uploadSemibecaDocument(token: string, documentName: string, document: File) {

@@ -82,7 +82,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   }, [isPublicPath, token]);
 
   useEffect(() => {
-    if (!token || !progress || isProgressRefreshing || isPublicPath || pathname === "/my-profile") {
+    if (!token || !progress || isProgressRefreshing || isPublicPath) {
       return;
     }
 

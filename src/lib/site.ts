@@ -1,7 +1,5 @@
 import { apiRequest } from "./api";
 
-const DEFAULT_PERIOD_NAME = "2026-I";
-
 type ActivePeriodResponse = {
   data?: {
     id: number;
@@ -9,31 +7,33 @@ type ActivePeriodResponse = {
   } | null;
 };
 
-export const ADMISSION_PROCESS_LABEL = `Concurso de admision ${DEFAULT_PERIOD_NAME}`;
-export const HEADER_PROCESS_LABEL = `Inscripciones ${DEFAULT_PERIOD_NAME}`;
+export const ADMISSION_PROCESS_LABEL = "Concurso de admision";
+export const HEADER_PROCESS_LABEL = "Inscripciones";
 
 export type SiteLabels = {
   admissionProcessLabel: string;
   headerProcessLabel: string;
-  periodName: string;
+  periodName: string | null;
 };
 
-export function buildSiteLabels(periodName = DEFAULT_PERIOD_NAME): SiteLabels {
+export function buildSiteLabels(periodName?: string | null): SiteLabels {
+  const suffix = periodName?.trim() ? ` ${periodName.trim()}` : "";
+
   return {
-    admissionProcessLabel: `Concurso de admision ${periodName}`,
-    headerProcessLabel: `Inscripciones ${periodName}`,
-    periodName,
+    admissionProcessLabel: `${ADMISSION_PROCESS_LABEL}${suffix}`,
+    headerProcessLabel: `${HEADER_PROCESS_LABEL}${suffix}`,
+    periodName: periodName?.trim() || null,
   };
 }
 
-export async function getActivePeriodName(): Promise<string> {
+export async function getActivePeriodName(): Promise<string | null> {
   try {
     const response = await apiRequest<ActivePeriodResponse>("/period-active", { cache: "no-store" });
     const periodName = response.data?.name?.trim();
 
-    return periodName || DEFAULT_PERIOD_NAME;
+    return periodName || null;
   } catch {
-    return DEFAULT_PERIOD_NAME;
+    return null;
   }
 }
 

@@ -1,10 +1,10 @@
 import type { NextConfig } from "next";
 
-const apiOrigin = new URL(process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://backend-inscripciones.test/api").origin;
-const defaultBackendOrigin = new URL("http://backend-inscripciones.test/api").origin;
+const apiOrigin = new URL(process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8001/api").origin;
+const defaultBackendOrigin = new URL("http://127.0.0.1:8001/api").origin;
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["127.0.0.1", "localhost"],
+  allowedDevOrigins: ["127.0.0.1", "localhost", "172.20.68.110"],
   images: {
     remotePatterns: [{ protocol: "https", hostname: "images.unsplash.com" }],
   },

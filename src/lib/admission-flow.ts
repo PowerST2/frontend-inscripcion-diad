@@ -22,7 +22,7 @@ export const FLOW_STEPS: FlowStep[] = [
   { key: "satisfaction_survey_complete", label: "Inscripción culminada", href: "/registration-complete" },
 ];
 
-const STRICT_FLOW_STEPS = FLOW_STEPS.slice(0, 4);
+const STRICT_FLOW_STEPS = FLOW_STEPS.slice(0, 2);
 
 const CONFIRMATION_PREREQUISITE_STEPS: FlowStep[] = [
   { key: "initial_consent_complete", label: "Aceptar declaración inicial", href: "/pre-inscription-affidavit" },
@@ -57,6 +57,12 @@ export function getStepForPath(pathname: string) {
 }
 
 export function canAccessFlowPath(pathname: string, progress: ApplicantProgress | null) {
+  const state = progress?.progress ?? {};
+
+  if (pathname === "/my-profile") {
+    return Boolean(state.initial_consent_complete) && Boolean(state.identity_complete);
+  }
+
   if (ALWAYS_ALLOWED_PATHS.has(pathname)) {
     return true;
   }
@@ -66,7 +72,6 @@ export function canAccessFlowPath(pathname: string, progress: ApplicantProgress 
     return true;
   }
 
-  const state = progress?.progress ?? {};
   const strictFlowComplete = STRICT_FLOW_STEPS.every((step) => state[step.key]);
 
   if (pathname === "/resume") {
